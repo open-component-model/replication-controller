@@ -1,0 +1,12 @@
+apiVersion: delivery.ocm.software/v1alpha1
+kind: ComponentSubscription
+metadata:
+  labels:
+    app.kubernetes.io/name: componentsubscription
+    app.kubernetes.io/instance: componentsubscription-sample
+    app.kubernetes.io/part-of: replication-controller
+    app.kuberentes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: replication-controller
+  name: componentsubscription-sample
+spec:
+  # TODO(user): Add fields here

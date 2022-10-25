@@ -1,0 +1,16 @@
+domain: ocm.software
+layout:
+- go.kubebuilder.io/v3
+projectName: replication-controller
+repo: github.com/open-component-model/replication-controller
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: ocm.software
+  group: delivery
+  kind: ComponentSubscription
+  path: github.com/open-component-model/replication-controller/api/v1alpha1
+  version: v1alpha1
+version: "3"
