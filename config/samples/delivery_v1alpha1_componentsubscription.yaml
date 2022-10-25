@@ -8,5 +8,19 @@ metadata:
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: replication-controller
   name: componentsubscription-sample
+  namespace: default
 spec:
-  # TODO(user): Add fields here
+  url: "oci://github.com"
+  component: "https://github.com/weavework/sock-shop"
+  interval: 10m0s
+  secretRef:
+    name: oci-secret
+  semver: "~v0.1.0"
+  verify:
+    - signature:
+        name: signature-name
+        key:
+          name: verify-key-name
+status:
+  latestVersion: "v0.1.1"
+  replicatedVersion: "v0.1.0"

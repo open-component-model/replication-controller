@@ -20,22 +20,35 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// Ref assumes that the namespace is the same as whatever the component has that is looking for this ref.
+type Ref struct {
+	Name string `json:"name"`
+}
+
+type Verify struct {
+	Name string `json:"name"`
+	Key  Ref    `json:"key"`
+}
+
+type Signature struct {
+	Verify Verify `json:"signature"`
+}
 
 // ComponentSubscriptionSpec defines the desired state of ComponentSubscription
 type ComponentSubscriptionSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of ComponentSubscription. Edit componentsubscription_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+	Interval  string `json:"interval"`
+	URL       string `json:"url"`
+	SecretRef Ref    `json:"secretRef"`
+	Component string `json:"component"`
+	// +optional
+	Semver string      `json:"semver,omitempty"`
+	Verify []Signature `json:"verify"`
 }
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription
 type ComponentSubscriptionStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	ReplicatedVersion string `json:"replicatedVersion"`
+	LatestVersion     string `json:"latestVersion"`
 }
 
 //+kubebuilder:object:root=true
