@@ -25,11 +25,15 @@ type Ref struct {
 	Name string `json:"name"`
 }
 
+// Verify contains a ref to the key used for verification.
 type Verify struct {
+	// Name of the signature.
 	Name string `json:"name"`
-	Key  Ref    `json:"key"`
+	// Key which is used for verification.
+	Key Ref `json:"key"`
 }
 
+// Signature defines the details of a signature to use for verification.
 type Signature struct {
 	Verify Verify `json:"signature"`
 }

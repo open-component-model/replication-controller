@@ -18,13 +18,16 @@ package controllers
 
 import (
 	"context"
+	"time"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
-	deliveryv1alpha1 "github.com/open-component-model/replication-controller/api/v1alpha1"
+	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
 
 // ComponentSubscriptionReconciler reconciles a ComponentSubscription object
@@ -40,17 +43,30 @@ type ComponentSubscriptionReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the ComponentSubscription object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.13.0/pkg/reconcile
 func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = log.FromContext(ctx)
+	log := log.FromContext(ctx)
+	subscription := &v1alpha1.ComponentSubscription{}
+	if err := r.Get(ctx, req.NamespacedName, subscription); err != nil {
+		if apierrors.IsNotFound(err) {
+			return ctrl.Result{}, nil
+		}
+		return requeue(10 * time.Second), err
+	}
 
-	// TODO(user): your logic here
+	log = log.WithValues("subscription", subscription)
+	log.Info("starting reconcile loop")
+
+	if subscription.DeletionTimestamp != nil {
+		log.Info("subscription is being deleted...")
+		return ctrl.Result{}, nil
+	}
+
+	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
+	if subscription.Status.LatestVersion == subscription.Status.ReplicatedVersion &&
+		(subscription.Status.LatestVersion != "" && subscription.Status.ReplicatedVersion != "") {
+		log.Info("latest version and replicated version are a match and not empty, skipping reconciling...")
+		return ctrl.Result{}, nil
+	}
 
 	return ctrl.Result{}, nil
 }
@@ -58,6 +74,13 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 // SetupWithManager sets up the controller with the Manager.
 func (r *ComponentSubscriptionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&deliveryv1alpha1.ComponentSubscription{}).
+		For(&v1alpha1.ComponentSubscription{}).
+		WithEventFilter(predicate.Or(SubscriptionUpdatedPredicate{})).
 		Complete(r)
+}
+
+func requeue(seconds time.Duration) ctrl.Result {
+	return ctrl.Result{
+		RequeueAfter: seconds * time.Second,
+	}
 }
