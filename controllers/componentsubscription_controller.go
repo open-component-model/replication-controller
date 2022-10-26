@@ -19,9 +19,14 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sort"
 	"time"
 
-	"github.com/open-component-model/replication-controller/pkg/poller"
+	"github.com/Masterminds/semver/v3"
+	csdk "github.com/open-component-model/ocm-controllers-sdk"
+	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -30,15 +35,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
-	"github.com/open-component-model/replication-controller/pkg"
 )
 
 // ComponentSubscriptionReconciler reconciles a ComponentSubscription object
 type ComponentSubscriptionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
-
-	OciClient pkg.OCIClient
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentsubscriptions,verbs=get;list;watch;create;update;patch;delete
@@ -55,7 +57,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		if apierrors.IsNotFound(err) {
 			return ctrl.Result{}, nil
 		}
-		return requeue(10 * time.Second), err
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
 	}
 
 	log = log.WithValues("subscription", subscription)
@@ -66,26 +68,25 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, nil
 	}
 
-	// If poller doesn't exist for Subscription, create it.
-	if _, ok := subscription.Annotations[poller.AnnotationPollerRunning]; !ok {
-		p := poller.NewPoller(log, r.Client, subscription)
-		if err := p.Poll(ctx); err != nil {
-			return ctrl.Result{
-				RequeueAfter: 30 * time.Second,
-			}, fmt.Errorf("failed to start poller for subscription: %w", err)
+	interval, err := time.ParseDuration(subscription.Spec.Interval)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to parse interval: %w", err)
+	}
+	requeue := func() ctrl.Result {
+		return ctrl.Result{
+			RequeueAfter: interval,
 		}
 	}
 
 	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
 	if subscription.Status.LatestVersion == subscription.Status.ReplicatedVersion &&
 		(subscription.Status.LatestVersion != "" && subscription.Status.ReplicatedVersion != "") {
-		log.Info("latest version and replicated version are a match and not empty, skipping reconciling...")
-		return ctrl.Result{}, nil
+		log.Info("latest version and replicated version are a match and not empty")
+		return requeue(), nil
 	}
 
-	// Download the component descriptor.
-	// Find the component with name X.
-	return ctrl.Result{}, nil
+	// Pull the new version, update, store if needed, requeue.
+	return requeue(), nil
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -96,8 +97,96 @@ func (r *ComponentSubscriptionReconciler) SetupWithManager(mgr ctrl.Manager) err
 		Complete(r)
 }
 
-func requeue(seconds time.Duration) ctrl.Result {
-	return ctrl.Result{
-		RequeueAfter: seconds * time.Second,
+func (r *ComponentSubscriptionReconciler) getLatestVersion(ctx context.Context, sub v1alpha1.ComponentSubscription) (string, bool, error) {
+	log := log.FromContext(ctx)
+	constraint, err := semver.NewConstraint(sub.Spec.Semver)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse semver constraint: %w", err)
 	}
+	log.V(4).Info("tick for subscription")
+	version, err := r.pullVersion(ctx, sub)
+	if err != nil {
+		log.Error(err, "failed to pull new version for component, retrying in a bit...", "component", sub.Spec.Component)
+	}
+
+	current, err := semver.NewVersion(version)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse version: %w", err)
+	}
+	// TODO: think about how to handle this nicely.
+	if sub.Status.LatestVersion == "" {
+		sub.Status.LatestVersion = "0.0.0"
+	}
+	latest, err := semver.NewVersion(sub.Status.LatestVersion)
+	if err != nil {
+		return "", false, fmt.Errorf("failed to parse latest version: %w", err)
+	}
+	if !constraint.Check(current) {
+		log.Info("version did not satisfy constraint, skipping...", "version", version, "constraint", constraint.String())
+		return "", false, nil
+	}
+	if current.LessThan(latest) || current.Equal(latest) {
+		log.Info("no new versions found", "version", current.String(), "latest", latest.String())
+		return "", false, nil
+	}
+	return latest.String(), true, nil
+}
+
+func (r *ComponentSubscriptionReconciler) pullVersion(ctx context.Context, subscription v1alpha1.ComponentSubscription) (string, error) {
+	log := log.FromContext(ctx)
+	session := ocm.NewSession(nil)
+	defer session.Close()
+
+	ocmCtx := ocm.ForContext(ctx)
+	// configure credentials
+	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, subscription.Spec.Source.URL, subscription.Spec.Source.SecretRef.Name, subscription.Namespace); err != nil {
+		log.Error(err, "failed to find credentials")
+		// ignore not found errors for now
+		if !apierrors.IsNotFound(err) {
+			return "", fmt.Errorf("failed to configure credentials for component: %w", err)
+		}
+	}
+
+	versions, err := r.listComponentVersions(ocmCtx, session, subscription)
+	if err != nil {
+		return "", fmt.Errorf("failed to get component versions: %w", err)
+	}
+
+	if len(versions) == 0 {
+		return "", fmt.Errorf("no versions found for component '%s'", subscription.Spec.Component)
+	}
+
+	sort.SliceStable(versions, func(i, j int) bool {
+		return versions[i].GreaterThan(versions[j])
+	})
+
+	return versions[0].String(), nil
+}
+
+func (r *ComponentSubscriptionReconciler) listComponentVersions(ctx ocm.Context, session ocm.Session, subscription v1alpha1.ComponentSubscription) ([]*semver.Version, error) {
+	// configure the repository access
+	repoSpec := genericocireg.NewRepositorySpec(ocireg.NewRepositorySpec(subscription.Spec.Source.URL), nil)
+	repo, err := session.LookupRepository(ctx, repoSpec)
+	if err != nil {
+		return nil, fmt.Errorf("repo error: %w", err)
+	}
+
+	// get the component version
+	cv, err := session.LookupComponent(repo, subscription.Spec.Component)
+	if err != nil {
+		return nil, fmt.Errorf("component error: %w", err)
+	}
+	versions, err := cv.ListVersions()
+	if err != nil {
+		return nil, fmt.Errorf("failed to list versions for component: %w", err)
+	}
+	var result []*semver.Version
+	for _, v := range versions {
+		parsed, err := semver.NewVersion(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse version '%s': %w", v, err)
+		}
+		result = append(result, parsed)
+	}
+	return result, nil
 }

@@ -33,7 +33,6 @@ import (
 
 	deliveryv1alpha1 "github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/open-component-model/replication-controller/controllers"
-	"github.com/open-component-model/replication-controller/pkg/providers/oci"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -91,11 +90,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	ociClient := oci.NewClient(ociAgent)
 	if err = (&controllers.ComponentSubscriptionReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		OciClient: ociClient,
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentSubscription")
 		os.Exit(1)
