@@ -10,11 +10,16 @@ metadata:
   name: componentsubscription-sample
   namespace: default
 spec:
-  url: "oci://github.com"
+  source:
+    secretRef:
+      name: source-access-secret
+    url: oci://source
+  destination:
+    secretRef:
+      name: destination-access-secret
+    url: oci://destination
   component: "https://github.com/weavework/sock-shop"
   interval: 10m0s
-  secretRef:
-    name: oci-secret
   semver: "~v0.1.0"
   verify:
     - signature:

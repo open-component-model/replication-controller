@@ -38,30 +38,58 @@ spec:
             properties:
               component:
                 type: string
-              interval:
-                type: string
-              secretRef:
-                description: Ref assumes that the namespace is the same as whatever
-                  the component has that is looking for this ref.
+              destination:
+                description: OCIRepository defines details for a repository, such
+                  as access keys and the url.
                 properties:
-                  name:
+                  secretRef:
+                    description: Ref assumes that the namespace is the same as whatever
+                      the component has that is looking for this ref.
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  url:
                     type: string
                 required:
-                - name
+                - secretRef
+                - url
                 type: object
+              interval:
+                type: string
               semver:
                 type: string
-              url:
-                type: string
+              source:
+                description: OCIRepository defines details for a repository, such
+                  as access keys and the url.
+                properties:
+                  secretRef:
+                    description: Ref assumes that the namespace is the same as whatever
+                      the component has that is looking for this ref.
+                    properties:
+                      name:
+                        type: string
+                    required:
+                    - name
+                    type: object
+                  url:
+                    type: string
+                required:
+                - secretRef
+                - url
+                type: object
               verify:
                 items:
+                  description: Signature defines the details of a signature to use
+                    for verification.
                   properties:
                     signature:
+                      description: Verify contains a ref to the key used for verification.
                       properties:
                         key:
-                          description: Ref assumes that the namespace is the same
-                            as whatever the component has that is looking for this
-                            ref.
+                          description: Key which is used for verification.
                           properties:
                             name:
                               type: string
@@ -69,6 +97,7 @@ spec:
                           - name
                           type: object
                         name:
+                          description: Name of the signature.
                           type: string
                       required:
                       - key
@@ -80,9 +109,9 @@ spec:
                 type: array
             required:
             - component
+            - destination
             - interval
-            - secretRef
-            - url
+            - source
             - verify
             type: object
           status:

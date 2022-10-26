@@ -18,8 +18,10 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
+	"github.com/open-component-model/replication-controller/pkg/poller"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -28,12 +30,15 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
+	"github.com/open-component-model/replication-controller/pkg"
 )
 
 // ComponentSubscriptionReconciler reconciles a ComponentSubscription object
 type ComponentSubscriptionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
+
+	OciClient pkg.OCIClient
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentsubscriptions,verbs=get;list;watch;create;update;patch;delete
@@ -61,6 +66,16 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, nil
 	}
 
+	// If poller doesn't exist for Subscription, create it.
+	if _, ok := subscription.Annotations[poller.AnnotationPollerRunning]; !ok {
+		p := poller.NewPoller(log, r.Client, subscription)
+		if err := p.Poll(ctx); err != nil {
+			return ctrl.Result{
+				RequeueAfter: 30 * time.Second,
+			}, fmt.Errorf("failed to start poller for subscription: %w", err)
+		}
+	}
+
 	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
 	if subscription.Status.LatestVersion == subscription.Status.ReplicatedVersion &&
 		(subscription.Status.LatestVersion != "" && subscription.Status.ReplicatedVersion != "") {
@@ -68,6 +83,8 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{}, nil
 	}
 
+	// Download the component descriptor.
+	// Find the component with name X.
 	return ctrl.Result{}, nil
 }
 

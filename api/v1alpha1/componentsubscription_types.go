@@ -38,12 +38,18 @@ type Signature struct {
 	Verify Verify `json:"signature"`
 }
 
-// ComponentSubscriptionSpec defines the desired state of ComponentSubscription
-type ComponentSubscriptionSpec struct {
-	Interval  string `json:"interval"`
+// OCIRepository defines details for a repository, such as access keys and the url.
+type OCIRepository struct {
 	URL       string `json:"url"`
 	SecretRef Ref    `json:"secretRef"`
-	Component string `json:"component"`
+}
+
+// ComponentSubscriptionSpec defines the desired state of ComponentSubscription
+type ComponentSubscriptionSpec struct {
+	Interval    string        `json:"interval"`
+	Source      OCIRepository `json:"source"`
+	Destination OCIRepository `json:"destination"`
+	Component   string        `json:"component"`
 	// +optional
 	Semver string      `json:"semver,omitempty"`
 	Verify []Signature `json:"verify"`
