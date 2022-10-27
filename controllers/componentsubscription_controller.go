@@ -85,6 +85,50 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return requeue(), nil
 	}
 
+	session := ocm.NewSession(nil)
+	defer session.Close()
+
+	ocmCtx := ocm.ForContext(ctx)
+	// configure credentials
+	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, subscription.Spec.Source.URL, subscription.Spec.Source.SecretRef.Name, subscription.Namespace); err != nil {
+		log.Error(err, "failed to find credentials")
+		return requeue(), fmt.Errorf("failed to configure credentials for component: %w", err)
+	}
+
+	version, err := r.pullLatestVersion(ocmCtx, session, *subscription)
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to get latest component version: %w", err)
+	}
+	constraint, err := semver.NewConstraint(subscription.Spec.Semver)
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to parse semver constraint: %w", err)
+	}
+	current, err := semver.NewVersion(version)
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to parse version: %w", err)
+	}
+	subLatest := "0.0.0"
+	if subscription.Status.LatestVersion != "" {
+		subLatest = subscription.Status.LatestVersion
+	}
+	latest, err := semver.NewVersion(subLatest)
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to parse latest version: %w", err)
+	}
+	if !constraint.Check(current) {
+		log.Info("version did not satisfy constraint, skipping...", "version", version, "constraint", constraint.String())
+		return requeue(), nil
+	}
+	if current.LessThan(latest) || current.Equal(latest) {
+		log.Info("no new version found", "version", current.String(), "latest", latest.String())
+		return requeue(), nil
+	}
+
+	cd, err := csdk.GetComponentVersion(ocmCtx, session, subscription.Spec.Source.URL, subscription.Spec.Component, latest.String())
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to get latest component descriptor: %w", err)
+	}
+
 	// Pull the new version, update, store if needed, requeue.
 	return requeue(), nil
 }
@@ -97,56 +141,7 @@ func (r *ComponentSubscriptionReconciler) SetupWithManager(mgr ctrl.Manager) err
 		Complete(r)
 }
 
-func (r *ComponentSubscriptionReconciler) getLatestVersion(ctx context.Context, sub v1alpha1.ComponentSubscription) (string, bool, error) {
-	log := log.FromContext(ctx)
-	constraint, err := semver.NewConstraint(sub.Spec.Semver)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to parse semver constraint: %w", err)
-	}
-	log.V(4).Info("tick for subscription")
-	version, err := r.pullVersion(ctx, sub)
-	if err != nil {
-		log.Error(err, "failed to pull new version for component, retrying in a bit...", "component", sub.Spec.Component)
-	}
-
-	current, err := semver.NewVersion(version)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to parse version: %w", err)
-	}
-	// TODO: think about how to handle this nicely.
-	if sub.Status.LatestVersion == "" {
-		sub.Status.LatestVersion = "0.0.0"
-	}
-	latest, err := semver.NewVersion(sub.Status.LatestVersion)
-	if err != nil {
-		return "", false, fmt.Errorf("failed to parse latest version: %w", err)
-	}
-	if !constraint.Check(current) {
-		log.Info("version did not satisfy constraint, skipping...", "version", version, "constraint", constraint.String())
-		return "", false, nil
-	}
-	if current.LessThan(latest) || current.Equal(latest) {
-		log.Info("no new versions found", "version", current.String(), "latest", latest.String())
-		return "", false, nil
-	}
-	return latest.String(), true, nil
-}
-
-func (r *ComponentSubscriptionReconciler) pullVersion(ctx context.Context, subscription v1alpha1.ComponentSubscription) (string, error) {
-	log := log.FromContext(ctx)
-	session := ocm.NewSession(nil)
-	defer session.Close()
-
-	ocmCtx := ocm.ForContext(ctx)
-	// configure credentials
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, subscription.Spec.Source.URL, subscription.Spec.Source.SecretRef.Name, subscription.Namespace); err != nil {
-		log.Error(err, "failed to find credentials")
-		// ignore not found errors for now
-		if !apierrors.IsNotFound(err) {
-			return "", fmt.Errorf("failed to configure credentials for component: %w", err)
-		}
-	}
-
+func (r *ComponentSubscriptionReconciler) pullLatestVersion(ocmCtx ocm.Context, session ocm.Session, subscription v1alpha1.ComponentSubscription) (string, error) {
 	versions, err := r.listComponentVersions(ocmCtx, session, subscription)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component versions: %w", err)
