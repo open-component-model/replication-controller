@@ -63,7 +63,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	subscription := &v1alpha1.ComponentSubscription{}
 	if err := r.Get(ctx, req.NamespacedName, subscription); err != nil {
 		if apierrors.IsNotFound(err) {
-			log.Info("item deleted")
+			log.Info("component deleted")
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
@@ -87,7 +87,6 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	// TODO: do this check AFTER you pulled the newest version.
 	session := ocm.NewSession(nil)
 	defer session.Close()
 
@@ -224,6 +223,7 @@ func (r *ComponentSubscriptionReconciler) listComponentVersions(ctx ocm.Context,
 	if err != nil {
 		return nil, fmt.Errorf("component error: %w", err)
 	}
+	fmt.Println("COMPONENT: ", cv.GetName())
 	versions, err := cv.ListVersions()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list versions for component: %w", err)
