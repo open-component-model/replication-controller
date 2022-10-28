@@ -36,6 +36,7 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/spiff"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -67,7 +68,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
 	}
 
-	log = log.WithValues("subscription", subscription)
+	log = log.WithValues("subscription", klog.KObj(subscription))
 	log.Info("starting reconcile loop")
 
 	if subscription.DeletionTimestamp != nil {
