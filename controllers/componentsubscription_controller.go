@@ -33,7 +33,7 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/spiff"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/standard"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -154,7 +154,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return requeue(), fmt.Errorf("failed to get target repo: %w", err)
 	}
 
-	thdlr, err := spiff.New(
+	handler, err := standard.New(
 		rscbyvalueoption.New(),
 		closureoption.New("component reference"),
 		overwriteoption.New(),
@@ -169,7 +169,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		transfer.TransportClosure{},
 		sourceComponentVersion,
 		target,
-		thdlr,
+		handler,
 	); err != nil {
 		return requeue(), fmt.Errorf("failed to transfer version to destination repositroy: %w", err)
 	}
@@ -223,7 +223,7 @@ func (r *ComponentSubscriptionReconciler) listComponentVersions(ctx ocm.Context,
 	if err != nil {
 		return nil, fmt.Errorf("component error: %w", err)
 	}
-	fmt.Println("COMPONENT: ", cv.GetName())
+
 	versions, err := cv.ListVersions()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list versions for component: %w", err)
