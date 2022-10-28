@@ -106,6 +106,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to get latest component version: %w", err)
 	}
+	log.V(4).Info("got newest version from component", "version", version)
 	constraint, err := semver.NewConstraint(subscription.Spec.Semver)
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to parse semver constraint: %w", err)
@@ -114,28 +115,29 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to parse version: %w", err)
 	}
-	subLatest := "0.0.0"
-	if subscription.Status.LatestVersion != "" {
-		subLatest = subscription.Status.LatestVersion
+	subReplicated := "0.0.0"
+	if subscription.Status.ReplicatedVersion != "" {
+		subReplicated = subscription.Status.ReplicatedVersion
 	}
-	latest, err := semver.NewVersion(subLatest)
+	replicatedVersion, err := semver.NewVersion(subReplicated)
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to parse latest version: %w", err)
 	}
+	log.V(4).Info("latest replicated version is", "replicated", replicatedVersion.String())
 	if !constraint.Check(current) {
 		log.Info("version did not satisfy constraint, skipping...", "version", version, "constraint", constraint.String())
 		return requeue(), nil
 	}
-	if current.LessThan(latest) || current.Equal(latest) {
-		log.Info("no new version found", "version", current.String(), "latest", latest.String())
+	if current.LessThan(replicatedVersion) || current.Equal(replicatedVersion) {
+		log.Info("no new version found", "version", current.String(), "latest", replicatedVersion.String())
 		return requeue(), nil
 	}
 
-	cd, err := csdk.GetComponentVersion(ocmCtx, session, subscription.Spec.Source.URL, subscription.Spec.Component, latest.String())
+	sourceComponentVersion, err := csdk.GetComponentVersion(ocmCtx, session, subscription.Spec.Source.URL, subscription.Spec.Component, current.String())
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to get latest component descriptor: %w", err)
 	}
-	log.V(4).Info("pulling", "component-name", cd.GetName())
+	log.V(4).Info("pulling", "component-name", sourceComponentVersion.GetName())
 
 	targetOcmCtx := ocm.ForContext(ctx)
 	// configure credentials
@@ -163,7 +165,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	if err := transfer.TransferVersion(
 		nil,
 		transfer.TransportClosure{},
-		cd,
+		sourceComponentVersion,
 		target,
 		thdlr,
 	); err != nil {
@@ -171,8 +173,8 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	}
 
 	newSub := subscription.DeepCopy()
-	newSub.Status.LatestVersion = latest.String()
-	newSub.Status.ReplicatedVersion = latest.String()
+	newSub.Status.LatestVersion = current.String()
+	newSub.Status.ReplicatedVersion = current.String()
 	if err := patchObject(ctx, r.Client, subscription, newSub); err != nil {
 		return requeue(), fmt.Errorf("failed to patch subscription: %w", err)
 	}
