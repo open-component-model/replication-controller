@@ -63,6 +63,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	subscription := &v1alpha1.ComponentSubscription{}
 	if err := r.Get(ctx, req.NamespacedName, subscription); err != nil {
 		if apierrors.IsNotFound(err) {
+			log.Info("item deleted")
 			return ctrl.Result{}, nil
 		}
 		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
@@ -86,13 +87,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		}
 	}
 
-	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
-	if subscription.Status.LatestVersion == subscription.Status.ReplicatedVersion &&
-		(subscription.Status.LatestVersion != "" && subscription.Status.ReplicatedVersion != "") {
-		log.Info("latest version and replicated version are a match and not empty")
-		return requeue(), nil
-	}
-
+	// TODO: do this check AFTER you pulled the newest version.
 	session := ocm.NewSession(nil)
 	defer session.Close()
 
@@ -108,6 +103,13 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return requeue(), fmt.Errorf("failed to get latest component version: %w", err)
 	}
 	log.V(4).Info("got newest version from component", "version", version)
+
+	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
+	if version == subscription.Status.ReplicatedVersion {
+		log.Info("latest version and replicated version are a match and not empty")
+		return requeue(), nil
+	}
+
 	constraint, err := semver.NewConstraint(subscription.Spec.Semver)
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to parse semver constraint: %w", err)
