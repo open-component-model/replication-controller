@@ -24,9 +24,16 @@ import (
 
 	"github.com/Masterminds/semver/v3"
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
+	"github.com/open-component-model/ocm/cmds/ocm/commands/common/options/closureoption"
+	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/options/lookupoption"
+	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/options/overwriteoption"
+	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/options/rscbyvalueoption"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
+	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/spiff"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -128,8 +135,49 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to get latest component descriptor: %w", err)
 	}
+	log.V(4).Info("pulling", "component-name", cd.GetName())
 
-	// Pull the new version, update, store if needed, requeue.
+	targetOcmCtx := ocm.ForContext(ctx)
+	// configure credentials
+	if err := csdk.ConfigureCredentials(ctx, targetOcmCtx, r.Client, subscription.Spec.Destination.URL, subscription.Spec.Destination.SecretRef.Name, subscription.Namespace); err != nil {
+		log.Error(err, "failed to find credentials for destination")
+		return requeue(), fmt.Errorf("failed to configure credentials for component: %w", err)
+	}
+
+	repoSpec := ocmreg.NewRepositorySpec(subscription.Spec.Destination.URL, nil)
+	target, err := targetOcmCtx.RepositoryForSpec(repoSpec)
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to get target repo: %w", err)
+	}
+
+	thdlr, err := spiff.New(
+		rscbyvalueoption.New(),
+		closureoption.New("component reference"),
+		overwriteoption.New(),
+		rscbyvalueoption.New(),
+		lookupoption.New(),
+	)
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to construct target handler: %w", err)
+	}
+	if err := transfer.TransferVersion(
+		nil,
+		transfer.TransportClosure{},
+		cd,
+		target,
+		thdlr,
+	); err != nil {
+		return requeue(), fmt.Errorf("failed to transfer version to destination repositroy: %w", err)
+	}
+
+	newSub := subscription.DeepCopy()
+	newSub.Status.LatestVersion = latest.String()
+	newSub.Status.ReplicatedVersion = latest.String()
+	if err := patchObject(ctx, r.Client, subscription, newSub); err != nil {
+		return requeue(), fmt.Errorf("failed to patch subscription: %w", err)
+	}
+
+	// Always requeue to constantly check for new versions.
 	return requeue(), nil
 }
 
