@@ -8,7 +8,7 @@ metadata:
     app.kuberentes.io/managed-by: kustomize
     app.kubernetes.io/created-by: replication-controller
   name: componentsubscription-sample
-  namespace: default
+  namespace: ocm-system
 spec:
   source:
     secretRef:
