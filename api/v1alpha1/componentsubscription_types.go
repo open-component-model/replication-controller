@@ -58,14 +58,15 @@ type ComponentSubscriptionSpec struct {
 	Source      OCIRepository `json:"source"`
 	Destination OCIRepository `json:"destination"`
 	Component   string        `json:"component"`
-	// +optional
+	//+optional
 	Semver string      `json:"semver,omitempty"`
 	Verify []Signature `json:"verify"`
 }
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription
 type ComponentSubscriptionStatus struct {
-	ReplicatedVersion string `json:"replicatedVersion"`
+	//+optional
+	ReplicatedVersion string `json:"replicatedVersion,omitempty"`
 	LatestVersion     string `json:"latestVersion"`
 }
 

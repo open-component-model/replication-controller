@@ -126,7 +126,6 @@ spec:
                 type: string
             required:
             - latestVersion
-            - replicatedVersion
             type: object
         type: object
     served: true
