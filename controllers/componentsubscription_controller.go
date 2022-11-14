@@ -24,8 +24,6 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -38,8 +36,10 @@ import (
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/standard"
 
@@ -140,6 +140,18 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return requeue(), nil
 	}
 
+	successfullyReplicatedVersion := *replicatedVersion
+	// At this point we want to update the latest version as a minimum. If we replicated the latest version
+	// successfully, we update `successfullyReplicatedVersion` placeholder for this.
+	defer func(subscription *v1alpha1.ComponentSubscription, current *semver.Version, replicated *semver.Version) {
+		newSub := subscription.DeepCopy()
+		newSub.Status.LatestVersion = current.Original()
+		newSub.Status.ReplicatedVersion = replicated.Original()
+		if err := patchObject(ctx, r.Client, subscription, newSub); err != nil {
+			log.Error(fmt.Errorf("failed to patch subscription: %w", err), "failed to update subscription", "latest-version", current.Original(), "replicated-version", replicated.Original())
+		}
+	}(subscription, current, &successfullyReplicatedVersion)
+
 	sourceComponentVersion, err := csdk.GetComponentVersion(ocmCtx, session, subscription.Spec.Source.URL, subscription.Spec.Component, current.Original())
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to get latest component descriptor: %w", err)
@@ -190,12 +202,8 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return requeue(), fmt.Errorf("failed to transfer version to destination repository: %w", err)
 	}
 
-	newSub := subscription.DeepCopy()
-	newSub.Status.LatestVersion = current.Original()
-	newSub.Status.ReplicatedVersion = current.Original()
-	if err := patchObject(ctx, r.Client, subscription, newSub); err != nil {
-		return requeue(), fmt.Errorf("failed to patch subscription: %w", err)
-	}
+	// Update `successfullyReplicatedVersion` so the defer update can succeed
+	successfullyReplicatedVersion = *current
 
 	// Always requeue to constantly check for new versions.
 	return requeue(), nil
@@ -256,6 +264,7 @@ func (r *ComponentSubscriptionReconciler) listComponentVersions(ctx ocm.Context,
 }
 
 func (r *ComponentSubscriptionReconciler) verifyComponent(ctx context.Context, ocmCtx ocm.Context, repo ocm.Repository, cv ocm.ComponentVersionAccess, namespace string, signatures []v1alpha1.Signature) (bool, error) {
+	log := log.FromContext(ctx)
 	resolver := ocm.NewCompoundResolver(repo)
 
 	for _, signature := range signatures {
@@ -280,7 +289,18 @@ func (r *ComponentSubscriptionReconciler) verifyComponent(ctx context.Context, o
 			return false, err
 		}
 
-		if dig.Value != cv.GetDescriptor().Signatures[0].Digest.Value {
+		var value string
+		for _, os := range cv.GetDescriptor().Signatures {
+			if os.Name == signature.Name {
+				value = os.Digest.Value
+				break
+			}
+		}
+		if value == "" {
+			return false, fmt.Errorf("signature with name '%s' not found in the list of provided ocm signatures", signature.Name)
+		}
+		log.V(4).Info("comparing", "dig-value", dig.Value, "descriptor-value", value)
+		if dig.Value != value {
 			return false, fmt.Errorf("%s signature did not match key value", signature.Name)
 		}
 	}
