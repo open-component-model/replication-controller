@@ -32,10 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
-	"github.com/open-component-model/ocm/cmds/ocm/commands/common/options/closureoption"
-	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/options/lookupoption"
-	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/options/overwriteoption"
-	"github.com/open-component-model/ocm/cmds/ocm/commands/ocmcmds/common/options/rscbyvalueoption"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
@@ -92,7 +88,6 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	defer session.Close()
 
 	ocmCtx := ocm.ForContext(ctx)
-	// configure credentials
 	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, subscription.Spec.Source.URL, subscription.Spec.Source.SecretRef.Name, subscription.Namespace); err != nil {
 		log.Error(err, "failed to find credentials")
 		return requeue(), fmt.Errorf("failed to configure credentials for component: %w", err)
@@ -118,49 +113,57 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to parse version: %w", err)
 	}
+
 	subReplicated := "0.0.0"
 	if subscription.Status.ReplicatedVersion != "" {
 		subReplicated = subscription.Status.ReplicatedVersion
 	}
+
 	replicatedVersion, err := semver.NewVersion(subReplicated)
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to parse latest version: %w", err)
 	}
-	log.V(4).Info("latest replicated version is", "replicated", replicatedVersion.String())
+
+	log.V(4).Info("latest replicated version is", "replicated", replicatedVersion.Original())
+
 	if !constraint.Check(current) {
 		log.Info("version did not satisfy constraint, skipping...", "version", version, "constraint", constraint.String())
 		return requeue(), nil
 	}
+
 	if current.LessThan(replicatedVersion) || current.Equal(replicatedVersion) {
-		log.Info("no new version found", "version", current.String(), "latest", replicatedVersion.String())
+		log.Info("no new version found", "version", current.Original(), "latest", replicatedVersion.Original())
 		return requeue(), nil
 	}
 
-	sourceComponentVersion, err := csdk.GetComponentVersion(ocmCtx, session, subscription.Spec.Source.URL, subscription.Spec.Component, current.String())
+	sourceComponentVersion, err := csdk.GetComponentVersion(ocmCtx, session, subscription.Spec.Source.URL, subscription.Spec.Component, current.Original())
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to get latest component descriptor: %w", err)
 	}
 	log.V(4).Info("pulling", "component-name", sourceComponentVersion.GetName())
 
-	targetOcmCtx := ocm.ForContext(ctx)
-	// configure credentials
-	if err := csdk.ConfigureCredentials(ctx, targetOcmCtx, r.Client, subscription.Spec.Destination.URL, subscription.Spec.Destination.SecretRef.Name, subscription.Namespace); err != nil {
+	if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, subscription.Spec.Destination.URL, subscription.Spec.Destination.SecretRef.Name, subscription.Namespace); err != nil {
 		log.Error(err, "failed to find credentials for destination")
 		return requeue(), fmt.Errorf("failed to configure credentials for component: %w", err)
 	}
 
-	repoSpec := ocmreg.NewRepositorySpec(subscription.Spec.Destination.URL, nil)
-	target, err := targetOcmCtx.RepositoryForSpec(repoSpec)
+	source, err := ocmCtx.RepositoryForSpec(ocmreg.NewRepositorySpec(subscription.Spec.Source.URL, nil))
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to get source repo: %w", err)
+	}
+
+	target, err := ocmCtx.RepositoryForSpec(ocmreg.NewRepositorySpec(subscription.Spec.Destination.URL, nil))
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to get target repo: %w", err)
 	}
 
 	handler, err := standard.New(
-		rscbyvalueoption.New(),
-		closureoption.New("component reference"),
-		overwriteoption.New(),
-		rscbyvalueoption.New(),
-		lookupoption.New(),
+		standard.Recursive(true),
+		standard.ResourcesByValue(true),
+		standard.Overwrite(true),
+		standard.Resolver(source),
+		standard.Resolver(target),
+		// if additional resolvers are required they could be added here...
 	)
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to construct target handler: %w", err)
@@ -172,12 +175,12 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		target,
 		handler,
 	); err != nil {
-		return requeue(), fmt.Errorf("failed to transfer version to destination repositroy: %w", err)
+		return requeue(), fmt.Errorf("failed to transfer version to destination repository: %w", err)
 	}
 
 	newSub := subscription.DeepCopy()
-	newSub.Status.LatestVersion = current.String()
-	newSub.Status.ReplicatedVersion = current.String()
+	newSub.Status.LatestVersion = current.Original()
+	newSub.Status.ReplicatedVersion = current.Original()
 	if err := patchObject(ctx, r.Client, subscription, newSub); err != nil {
 		return requeue(), fmt.Errorf("failed to patch subscription: %w", err)
 	}
@@ -208,7 +211,7 @@ func (r *ComponentSubscriptionReconciler) pullLatestVersion(ocmCtx ocm.Context, 
 		return versions[i].GreaterThan(versions[j])
 	})
 
-	return versions[0].String(), nil
+	return versions[0].Original(), nil
 }
 
 func (r *ComponentSubscriptionReconciler) listComponentVersions(ctx ocm.Context, session ocm.Session, subscription v1alpha1.ComponentSubscription) ([]*semver.Version, error) {
