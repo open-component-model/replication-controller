@@ -85,26 +85,28 @@ spec:
                   description: Signature defines the details of a signature to use
                     for verification.
                   properties:
-                    signature:
-                      description: Verify contains a ref to the key used for verification.
+                    name:
+                      description: Name of the signature.
+                      type: string
+                    publicKey:
+                      description: Key which is used for verification.
                       properties:
-                        key:
-                          description: Key which is used for verification.
+                        secretRef:
+                          description: Ref assumes that the namespace is the same
+                            as whatever the component has that is looking for this
+                            ref.
                           properties:
                             name:
                               type: string
                           required:
                           - name
                           type: object
-                        name:
-                          description: Name of the signature.
-                          type: string
                       required:
-                      - key
-                      - name
+                      - secretRef
                       type: object
                   required:
-                  - signature
+                  - name
+                  - publicKey
                   type: object
                 type: array
             required:

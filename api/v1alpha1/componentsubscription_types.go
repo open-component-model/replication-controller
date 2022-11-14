@@ -33,9 +33,17 @@ type Verify struct {
 	Key Ref `json:"key"`
 }
 
+// SecretRef clearly denotes that the requested option is a Secret.
+type SecretRef struct {
+	SecretRef Ref `json:"secretRef"`
+}
+
 // Signature defines the details of a signature to use for verification.
 type Signature struct {
-	Verify Verify `json:"signature"`
+	// Name of the signature.
+	Name string `json:"name"`
+	// Key which is used for verification.
+	PublicKey SecretRef `json:"publicKey"`
 }
 
 // OCIRepository defines details for a repository, such as access keys and the url.

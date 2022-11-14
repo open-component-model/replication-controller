@@ -18,11 +18,15 @@ package controllers
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"time"
 
 	"github.com/Masterminds/semver/v3"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
+	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
@@ -152,6 +156,14 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		return requeue(), fmt.Errorf("failed to get source repo: %w", err)
 	}
 
+	ok, err := r.verifyComponent(ctx, ocmCtx, source, sourceComponentVersion, subscription.Namespace, subscription.Spec.Verify)
+	if err != nil {
+		return requeue(), fmt.Errorf("failed to verify signature: %w", err)
+	}
+	if !ok {
+		return requeue(), fmt.Errorf("on of the signatures failed to match: %w", err)
+	}
+
 	target, err := ocmCtx.RepositoryForSpec(ocmreg.NewRepositorySpec(subscription.Spec.Destination.URL, nil))
 	if err != nil {
 		return requeue(), fmt.Errorf("failed to get target repo: %w", err)
@@ -241,4 +253,55 @@ func (r *ComponentSubscriptionReconciler) listComponentVersions(ctx ocm.Context,
 		result = append(result, parsed)
 	}
 	return result, nil
+}
+
+func (r *ComponentSubscriptionReconciler) verifyComponent(ctx context.Context, ocmCtx ocm.Context, repo ocm.Repository, cv ocm.ComponentVersionAccess, namespace string, signatures []v1alpha1.Signature) (bool, error) {
+	resolver := ocm.NewCompoundResolver(repo)
+
+	for _, signature := range signatures {
+		cert, err := r.getPublicKey(ctx, namespace, signature.PublicKey.SecretRef.Name, signature.Name)
+		if err != nil {
+			return false, fmt.Errorf("verify error: %w", err)
+		}
+
+		opts := signing.NewOptions(
+			signing.VerifySignature(signature.Name),
+			signing.Resolver(resolver),
+			signing.VerifyDigests(),
+			signing.PublicKey(signature.Name, cert),
+		)
+
+		if err := opts.Complete(signingattr.Get(ocmCtx)); err != nil {
+			return false, fmt.Errorf("verify error: %w", err)
+		}
+
+		dig, err := signing.Apply(nil, nil, cv, opts)
+		if err != nil {
+			return false, err
+		}
+
+		if dig.Value != cv.GetDescriptor().Signatures[0].Digest.Value {
+			return false, fmt.Errorf("%s signature did not match key value", signature.Name)
+		}
+	}
+	return true, nil
+}
+
+func (r *ComponentSubscriptionReconciler) getPublicKey(ctx context.Context, namespace, name, signature string) ([]byte, error) {
+	var secret corev1.Secret
+	secretKey := client.ObjectKey{
+		Namespace: namespace,
+		Name:      name,
+	}
+	if err := r.Get(ctx, secretKey, &secret); err != nil {
+		return nil, err
+	}
+
+	for key, value := range secret.Data {
+		if key == signature {
+			return value, nil
+		}
+	}
+
+	return nil, errors.New("public key not found")
 }
