@@ -8,6 +8,7 @@ require (
 	github.com/onsi/gomega v1.23.0
 	github.com/open-component-model/ocm v0.0.1-0.20221027113832-3b98a1369cef
 	github.com/open-component-model/ocm-controllers-sdk v0.0.5
+	k8s.io/api v0.25.3
 	k8s.io/apimachinery v0.25.3
 	k8s.io/client-go v0.25.3
 	k8s.io/klog/v2 v2.80.1
@@ -146,7 +147,6 @@ require (
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	k8s.io/api v0.25.3 // indirect
 	k8s.io/apiextensions-apiserver v0.25.3 // indirect
 	k8s.io/component-base v0.25.3 // indirect
 	k8s.io/kube-openapi v0.0.0-20221012153701-172d655c2280 // indirect
