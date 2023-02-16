@@ -1,12 +1,11 @@
 module github.com/open-component-model/replication-controller
 
-go 1.19
+go 1.20
 
 require (
 	github.com/Masterminds/semver/v3 v3.2.0
+	github.com/fluxcd/pkg/apis/meta v0.19.0
 	github.com/fluxcd/pkg/runtime v0.27.0
-	github.com/onsi/ginkgo/v2 v2.7.0
-	github.com/onsi/gomega v1.26.0
 	github.com/open-component-model/ocm v0.1.1-0.20230209090236-5c16e986faa6
 	github.com/open-component-model/ocm-controllers-sdk v0.0.6
 	k8s.io/api v0.26.1
@@ -56,8 +55,8 @@ require (
 	github.com/docker/go-metrics v0.0.1 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.0 // indirect
+	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
-	github.com/fluxcd/pkg/apis/meta v0.19.0 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fvbommel/sortorder v1.0.2 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
@@ -83,6 +82,7 @@ require (
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.15.12 // indirect
 	github.com/klauspost/pgzip v1.2.5 // indirect
+	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
 	github.com/mandelsoft/logging v0.0.0-20221114215048-ab754b164dd6 // indirect
@@ -100,6 +100,7 @@ require (
 	github.com/morikuni/aec v1.0.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/nxadm/tail v1.4.8 // indirect
+	github.com/onsi/gomega v1.26.0 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0-rc2 // indirect
 	github.com/pelletier/go-toml v1.9.5 // indirect
