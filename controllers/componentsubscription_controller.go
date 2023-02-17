@@ -146,12 +146,14 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	if obj.Spec.Source.SecretRef != nil {
 		if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
 			log.Error(err, "failed to find credentials")
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ConfiguringCredentialsFailedReason, err.Error())
 			return ctrl.Result{}, fmt.Errorf("failed to configure credentials for component: %w", err)
 		}
 	}
 
 	version, err := r.pullLatestVersion(ocmCtx, session, *obj)
 	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.PullingLatestVersionFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to get latest component version: %w", err)
 	}
 	log.V(4).Info("got newest version from component", "version", version)
@@ -164,6 +166,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	constraint, err := semver.NewConstraint(obj.Spec.Semver)
 	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SemverConversionFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to parse semver constraint: %w", err)
 	}
 	current, err := semver.NewVersion(version)
@@ -178,6 +181,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	replicatedVersion, err := semver.NewVersion(subReplicated)
 	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SemverConversionFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to parse latest version: %w", err)
 	}
 
@@ -199,12 +203,14 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	sourceComponentVersion, err := csdk.GetComponentVersion(ocmCtx, session, obj.Spec.Source.URL, obj.Spec.Component, current.Original())
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to get latest component descriptor: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
+		return ctrl.Result{}, fmt.Errorf("failed to get latest component version: %w", err)
 	}
 	log.V(4).Info("pulling", "component-name", sourceComponentVersion.GetName())
 
 	if obj.Spec.Destination.SecretRef != nil {
 		if err := csdk.ConfigureCredentials(ctx, ocmCtx, r.Client, obj.Spec.Destination.URL, obj.Spec.Destination.SecretRef.Name, obj.Namespace); err != nil {
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ConfiguringCredentialsFailedReason, err.Error())
 			log.Error(err, "failed to find credentials for destination")
 			return ctrl.Result{}, fmt.Errorf("failed to configure credentials for component: %w", err)
 		}
@@ -212,19 +218,23 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	source, err := ocmCtx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
 	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.RepositoryForSpecFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to get source repo: %w", err)
 	}
 
 	ok, err := r.verifyComponent(ctx, ocmCtx, source, sourceComponentVersion, obj.Namespace, obj.Spec.Verify)
 	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationProcessFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to verify signature: %w", err)
 	}
 	if !ok {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.VerificationProcessFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("on of the signatures failed to match: %w", err)
 	}
 
 	target, err := ocmCtx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Destination.URL, nil))
 	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.RepositoryForSpecFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to get target repo: %w", err)
 	}
 
@@ -237,6 +247,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 		// if additional resolvers are required they could be added here...
 	)
 	if err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.ConstructingHandlerFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to construct target handler: %w", err)
 	}
 	if err := transfer.TransferVersion(
@@ -246,6 +257,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 		target,
 		handler,
 	); err != nil {
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.TransferFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to transfer version to destination repository: %w", err)
 	}
 

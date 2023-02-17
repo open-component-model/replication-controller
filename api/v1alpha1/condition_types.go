@@ -6,49 +6,30 @@
 package v1alpha1
 
 const (
-	// ComponentVersionFetchFailedReason is used when we failed to retrieve a component version.
-	ComponentVersionFetchFailedReason = "ComponentVersionFetchFailed"
-
-	// ComponentDescriptorFetchFailedReason is used when we failed to retrieve a component descriptor.
-	ComponentDescriptorFetchFailedReason = "ComponentDescriptorFetchFailed"
-
-	// PipelineTemplateFetchFailedReason is used when we failed to retrieve the pipeline template.
-	PipelineTemplateFetchFailedReason = "PipelineTemplateFetchFailed"
-
-	// PipelineTemplateExecutionFailedReason is used when we failed to execute the pipeline template.
-	PipelineTemplateExecutionFailedReason = "PipelineTemplateExecutionFailed"
-
-	// InvalidPipelineTemplateDataReason is used when we can't unmarshal the template data.
-	InvalidPipelineTemplateDataReason = "InvalidPipelineTemplateData"
-
-	// SettingDefaultValuesFailedReason is used when we fail to set default values for Kind data.
-	SettingDefaultValuesFailedReason = "SettingDefaultValuesFailed"
-
-	// TemplateStepDependencyErrorReason is used when the template steps ordering if invalid and there is a missing
-	// step that another step is depending on.
-	TemplateStepDependencyErrorReason = "TemplateStepDependencyError"
-
-	// TemplateDataParseFailedReason is used when we fail to parse template data.
-	TemplateDataParseFailedReason = "TemplateDataParseFailed"
-
-	// ImpersonatingClientFetchFailedReason is used when we can't create an impersonation client.
-	ImpersonatingClientFetchFailedReason = "ImpersonatingClientFetchFailed"
-
-	// ShouldReconcileCheckFailedReason is used when we couldn't determine if the controller should reconcile.
-	ShouldReconcileCheckFailedReason = "ShouldReconcileCheckFailed"
+	// ConfiguringCredentialsFailedReason is used when we fail to configure credentials.
+	ConfiguringCredentialsFailedReason = "ConfiguringCredentialsFailed"
 
 	// PatchFailedReason is used when we couldn't patch an object.
 	PatchFailedReason = "PatchFailed"
 
-	// ApplyFailedReason is used when we couldn't apply an object.
-	ApplyFailedReason = "ApplyFailed"
+	// PullingLatestVersionFailedReason is used when we couldn't pull the latest version for a controller.
+	PullingLatestVersionFailedReason = "PullingLatestVersionFailed"
 
-	// PruneFailedReason is used when we couldn't prune an object.
-	PruneFailedReason = "PruneFailed"
+	// SemverConversionFailedReason is used when we couldn't convert a version to semver.
+	SemverConversionFailedReason = "SemverConversionFailed"
 
-	// AddingItemsToInventoryFailedReason is used when we couldn't add any items to the inventory.
-	AddingItemsToInventoryFailedReason = "AddingItemsToInventoryFailed"
+	// GetComponentDescriptorFailedReason is used when the component descriptor cannot be retrieved.
+	GetComponentDescriptorFailedReason = "GetComponentDescriptorFailed"
 
-	// InventoryDiffFailedReason is used when we couldn't diff the inventory.
-	InventoryDiffFailedReason = "InventoryDiffFailed"
+	// RepositoryForSpecFailedReason is used when we fail to create a repository for a spec.
+	RepositoryForSpecFailedReason = "RepositoryForSpecFailed"
+
+	// VerificationProcessFailedReason is used when the verification process fails to verify a component.
+	VerificationProcessFailedReason = "VerificationProcessFailed"
+
+	// ConstructingHandlerFailedReason is used when we fail to create a transfer handler.
+	ConstructingHandlerFailedReason = "ConstructingHandlerFailed"
+
+	// TransferFailedReason is used when we fail to transfer a component.
+	TransferFailedReason = "TransferFailed"
 )
