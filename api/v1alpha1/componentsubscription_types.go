@@ -55,7 +55,7 @@ type ComponentSubscriptionSpec struct {
 	Component   string        `json:"component"`
 	//+optional
 	Semver string      `json:"semver,omitempty"`
-	Verify []Signature `json:"verify"`
+	Verify []Signature `json:"verify,omitempty"`
 }
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription

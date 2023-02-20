@@ -134,7 +134,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 	}()
 
 	result, retErr = r.reconcile(ctx, obj)
-	return ctrl.Result{}, retErr
+	return result, retErr
 }
 
 func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ctrl.Result, error) {
