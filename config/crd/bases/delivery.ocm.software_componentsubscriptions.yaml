@@ -39,7 +39,7 @@ spec:
               component:
                 type: string
               destination:
-                description: OCIRepository defines details for a repository, such
+                description: OCMRepository defines details for a repository, such
                   as access keys and the url.
                 properties:
                   secretRef:
@@ -65,7 +65,7 @@ spec:
               semver:
                 type: string
               source:
-                description: OCIRepository defines details for a repository, such
+                description: OCMRepository defines details for a repository, such
                   as access keys and the url.
                 properties:
                   secretRef:

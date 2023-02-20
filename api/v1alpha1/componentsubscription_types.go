@@ -37,8 +37,8 @@ type Signature struct {
 	PublicKey SecretRef `json:"publicKey"`
 }
 
-// OCIRepository defines details for a repository, such as access keys and the url.
-type OCIRepository struct {
+// OCMRepository defines details for a repository, such as access keys and the url.
+type OCMRepository struct {
 	URL       string `json:"url"`
 	SecretRef *Ref   `json:"secretRef,omitempty"`
 }
@@ -50,8 +50,8 @@ type ComponentSubscriptionSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	Source      OCIRepository `json:"source"`
-	Destination OCIRepository `json:"destination"`
+	Source      OCMRepository `json:"source"`
+	Destination OCMRepository `json:"destination"`
 	Component   string        `json:"component"`
 	//+optional
 	Semver string      `json:"semver,omitempty"`
