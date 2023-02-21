@@ -7,8 +7,10 @@ package controllers
 
 import (
 	"testing"
+	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -49,6 +51,33 @@ func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
 	}
 	return fake.NewClientBuilder().WithScheme(t.scheme).WithObjects(t.obj...).Build()
 }
+
+var (
+	DefaultComponentSubscription = v1alpha1.ComponentSubscription{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-component-subscription",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentSubscriptionSpec{
+			Interval: metav1.Duration{Duration: 10 * time.Second},
+			Source: v1alpha1.OCMRepository{
+				URL: "https://source.com",
+				SecretRef: &v1alpha1.Ref{
+					Name: "source-secret",
+				},
+			},
+			Destination: v1alpha1.OCMRepository{
+				URL: "https://destination.com",
+				SecretRef: &v1alpha1.Ref{
+					Name: "destination-secret",
+				},
+			},
+			Component: "github.com/open-component-model/component",
+			Semver:    "v0.0.1",
+		},
+		Status: v1alpha1.ComponentSubscriptionStatus{},
+	}
+)
 
 var env *testEnv
 

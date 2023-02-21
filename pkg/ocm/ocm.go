@@ -25,19 +25,19 @@ import (
 
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
 
-	v1alpha12 "github.com/open-component-model/replication-controller/api/v1alpha1"
+	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
 
 // Verifier takes a Component and runs OCM verification on it.
 type Verifier interface {
-	VerifySourceComponent(ctx context.Context, obj *v1alpha12.ComponentSubscription, version string) (bool, error)
+	VerifySourceComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error)
 }
 
 // Fetcher gets information about an OCM component Version based on a k8s component Version.
 type Fetcher interface {
-	GetComponentVersion(ctx context.Context, obj *v1alpha12.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error)
-	GetLatestSourceComponentVersion(ctx context.Context, obj *v1alpha12.ComponentSubscription) (string, error)
-	TransferComponent(ctx context.Context, obj *v1alpha12.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error
+	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error)
+	GetLatestSourceComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription) (string, error)
+	TransferComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error
 }
 
 // FetchVerifier can fetch and verify components.
@@ -61,7 +61,7 @@ func NewClient(client client.Client) *Client {
 }
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
-func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha12.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
+func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
 	log := log.FromContext(ctx)
 
 	octx := ocm.ForContext(ctx)
@@ -89,7 +89,7 @@ func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha12.Compone
 	return cv, nil
 }
 
-func (c *Client) VerifySourceComponent(ctx context.Context, obj *v1alpha12.ComponentSubscription, version string) (bool, error) {
+func (c *Client) VerifySourceComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
 	log := log.FromContext(ctx)
 
 	octx := ocm.ForContext(ctx)
@@ -182,7 +182,7 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 	return nil, errors.New("public key not found")
 }
 
-func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, obj *v1alpha12.ComponentSubscription) (string, error) {
+func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription) (string, error) {
 	log := log.FromContext(ctx)
 
 	octx := ocm.ForContext(ctx)
@@ -221,7 +221,7 @@ type Version struct {
 	Version string
 }
 
-func (c *Client) listComponentVersions(octx ocm.Context, obj *v1alpha12.ComponentSubscription) ([]Version, error) {
+func (c *Client) listComponentVersions(octx ocm.Context, obj *v1alpha1.ComponentSubscription) ([]Version, error) {
 	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
@@ -254,7 +254,7 @@ func (c *Client) listComponentVersions(octx ocm.Context, obj *v1alpha12.Componen
 	return result, nil
 }
 
-func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha12.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
+func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
 	log := log.FromContext(ctx)
 	octx := ocm.ForContext(ctx)
 
