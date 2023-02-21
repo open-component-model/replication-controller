@@ -6,6 +6,8 @@
 package v1alpha1
 
 import (
+	"time"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -35,28 +37,59 @@ type Signature struct {
 	PublicKey SecretRef `json:"publicKey"`
 }
 
-// OCIRepository defines details for a repository, such as access keys and the url.
-type OCIRepository struct {
+// OCMRepository defines details for a repository, such as access keys and the url.
+type OCMRepository struct {
 	URL       string `json:"url"`
-	SecretRef Ref    `json:"secretRef"`
+	SecretRef *Ref   `json:"secretRef,omitempty"`
 }
 
 // ComponentSubscriptionSpec defines the desired state of ComponentSubscription
 type ComponentSubscriptionSpec struct {
-	Interval    string        `json:"interval"`
-	Source      OCIRepository `json:"source"`
-	Destination OCIRepository `json:"destination"`
+	// Interval is the reconciliation interval, i.e. at what interval shall a reconciliation happen.
+	// This is used to requeue objects for reconciliation in case of success as well as already reconciling objects.
+	// +required
+	Interval metav1.Duration `json:"interval"`
+
+	Source      OCMRepository `json:"source"`
+	Destination OCMRepository `json:"destination"`
 	Component   string        `json:"component"`
 	//+optional
 	Semver string      `json:"semver,omitempty"`
-	Verify []Signature `json:"verify"`
+	Verify []Signature `json:"verify,omitempty"`
 }
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription
 type ComponentSubscriptionStatus struct {
+	// LatestVersion defines the version that was last reconciled successfully.
+	LatestVersion string `json:"latestVersion"`
+
+	// ObservedGeneration is the last reconciled generation.
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
 	//+optional
 	ReplicatedVersion string `json:"replicatedVersion,omitempty"`
-	LatestVersion     string `json:"latestVersion"`
+
+	// +optional
+	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
+	// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
+	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+// GetConditions returns the conditions of the ComponentVersion.
+func (in *ComponentSubscription) GetConditions() []metav1.Condition {
+	return in.Status.Conditions
+}
+
+// SetConditions sets the conditions of the ComponentVersion.
+func (in *ComponentSubscription) SetConditions(conditions []metav1.Condition) {
+	in.Status.Conditions = conditions
+}
+
+// GetRequeueAfter returns the duration after which the ComponentVersion must be
+// reconciled again.
+func (in ComponentSubscription) GetRequeueAfter() time.Duration {
+	return in.Spec.Interval.Duration
 }
 
 //+kubebuilder:object:root=true

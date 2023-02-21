@@ -6,64 +6,88 @@
 package controllers
 
 import (
-	"path/filepath"
 	"testing"
+	"time"
 
-	. "github.com/onsi/ginkgo/v2"
-	. "github.com/onsi/gomega"
-
-	"k8s.io/client-go/kubernetes/scheme"
-	"k8s.io/client-go/rest"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/envtest"
-	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	deliveryv1alpha1 "github.com/open-component-model/replication-controller/api/v1alpha1"
-	//+kubebuilder:scaffold:imports
+	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
 
-// These tests use Ginkgo (BDD-style Go testing framework). Refer to
-// http://onsi.github.io/ginkgo/ to learn more about Ginkgo.
-
-var cfg *rest.Config
-var k8sClient client.Client
-var testEnv *envtest.Environment
-
-func TestAPIs(t *testing.T) {
-	RegisterFailHandler(Fail)
-
-	RunSpecs(t, "Controller Suite")
+type testEnv struct {
+	scheme *runtime.Scheme
+	obj    []client.Object
 }
 
-var _ = BeforeSuite(func() {
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+// FakeKubeClientOption defines options to construct a fake kube client. There are some defaults involved.
+// Scheme gets corev1 and ocmv1alpha1 schemes by default. Anything that is passed in will override current
+// defaults.
+type FakeKubeClientOption func(testEnv *testEnv)
 
-	By("bootstrapping test environment")
-	testEnv = &envtest.Environment{
-		CRDDirectoryPaths:     []string{filepath.Join("..", "config", "crd", "bases")},
-		ErrorIfCRDPathMissing: true,
+// WithAddToScheme adds the scheme
+func WithAddToScheme(addToScheme func(s *runtime.Scheme) error) FakeKubeClientOption {
+	return func(testEnv *testEnv) {
+		if err := addToScheme(testEnv.scheme); err != nil {
+			panic(err)
+		}
 	}
+}
 
-	var err error
-	// cfg is defined in this file globally.
-	cfg, err = testEnv.Start()
-	Expect(err).NotTo(HaveOccurred())
-	Expect(cfg).NotTo(BeNil())
+// WithObjects provides an option to set objects for the fake client.
+func WithObjets(obj ...client.Object) FakeKubeClientOption {
+	return func(testEnv *testEnv) {
+		testEnv.obj = obj
+	}
+}
 
-	err = deliveryv1alpha1.AddToScheme(scheme.Scheme)
-	Expect(err).NotTo(HaveOccurred())
+// FakeKubeClient creates a fake kube client with some defaults and optional arguments.
+func (t *testEnv) FakeKubeClient(opts ...FakeKubeClientOption) client.Client {
+	for _, o := range opts {
+		o(t)
+	}
+	return fake.NewClientBuilder().WithScheme(t.scheme).WithObjects(t.obj...).Build()
+}
 
-	//+kubebuilder:scaffold:scheme
+var (
+	DefaultComponentSubscription = v1alpha1.ComponentSubscription{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-component-subscription",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentSubscriptionSpec{
+			Interval: metav1.Duration{Duration: 10 * time.Second},
+			Source: v1alpha1.OCMRepository{
+				URL: "https://source.com",
+				SecretRef: &v1alpha1.Ref{
+					Name: "source-secret",
+				},
+			},
+			Destination: v1alpha1.OCMRepository{
+				URL: "https://destination.com",
+				SecretRef: &v1alpha1.Ref{
+					Name: "destination-secret",
+				},
+			},
+			Component: "github.com/open-component-model/component",
+			Semver:    "v0.0.1",
+		},
+		Status: v1alpha1.ComponentSubscriptionStatus{},
+	}
+)
 
-	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
-	Expect(err).NotTo(HaveOccurred())
-	Expect(k8sClient).NotTo(BeNil())
+var env *testEnv
 
-})
+func TestMain(m *testing.M) {
+	scheme := runtime.NewScheme()
+	_ = v1alpha1.AddToScheme(scheme)
+	_ = corev1.AddToScheme(scheme)
 
-var _ = AfterSuite(func() {
-	By("tearing down the test environment")
-	err := testEnv.Stop()
-	Expect(err).NotTo(HaveOccurred())
-})
+	env = &testEnv{
+		scheme: scheme,
+	}
+	m.Run()
+}
