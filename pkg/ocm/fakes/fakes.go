@@ -20,17 +20,17 @@ type getResourceReturnValues struct {
 // resources and the mock does not compile.
 // I.e.: counterfeiter: https://github.com/maxbrunsfeld/counterfeiter/issues/174
 type MockFetcher struct {
-	getComponentVersionMap                map[string]ocm.ComponentVersionAccess
-	getComponentVersionErr                error
-	getComponentVersionCalledWith         [][]any
-	verifySourceComponentErr              error
-	verifySourceComponentVerified         bool
-	verifySourceComponentCalledWith       [][]any
-	getLatestComponentVersionVersion      string
-	getLatestComponentVersionErr          error
-	getLatestComponentVersionCalledWith   [][]any
-	transferComponentVersionErr           error
-	transferComponentVersionErrCalledWith [][]any
+	getComponentVersionMap              map[string]ocm.ComponentVersionAccess
+	getComponentVersionErr              error
+	getComponentVersionCalledWith       [][]any
+	verifySourceComponentErr            error
+	verifySourceComponentVerified       bool
+	verifySourceComponentCalledWith     [][]any
+	getLatestComponentVersionVersion    string
+	getLatestComponentVersionErr        error
+	getLatestComponentVersionCalledWith [][]any
+	transferComponentVersionErr         error
+	transferComponentVersionCalledWith  [][]any
 }
 
 func (m *MockFetcher) GetComponentVersion(ctx context.Context, obj *v1alpha12.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
@@ -91,6 +91,18 @@ func (m *MockFetcher) GetLatestComponentVersionWasNotCalled() bool {
 }
 
 func (m *MockFetcher) TransferComponent(ctx context.Context, obj *v1alpha12.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
-	m.transferComponentVersionErrCalledWith = append(m.transferComponentVersionErrCalledWith, []any{obj, sourceComponentVersion, version})
-	return nil
+	m.transferComponentVersionCalledWith = append(m.transferComponentVersionCalledWith, []any{obj, sourceComponentVersion, version})
+	return m.transferComponentVersionErr
+}
+
+func (m *MockFetcher) TransferComponentReturns(err error) {
+	m.transferComponentVersionErr = err
+}
+
+func (m *MockFetcher) TransferComponentWasNotCalled() bool {
+	return len(m.transferComponentVersionCalledWith) == 0
+}
+
+func (m *MockFetcher) TransferComponentCallingArgumentsOnCall(i int) []any {
+	return m.transferComponentVersionCalledWith[i]
 }
