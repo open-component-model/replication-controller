@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
-	v1alpha12 "github.com/open-component-model/replication-controller/api/v1alpha1"
+	"github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -25,15 +25,15 @@ func TestClient_GetComponentVersion(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cs := &v1alpha12.ComponentSubscription{
+	cs := &v1alpha1.ComponentSubscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
 			Namespace: "default",
 		},
-		Spec: v1alpha12.ComponentSubscriptionSpec{
+		Spec: v1alpha1.ComponentSubscriptionSpec{
 			Component: component,
 			Semver:    "v0.0.1",
-			Source: v1alpha12.OCMRepository{
+			Source: v1alpha1.OCMRepository{
 				URL: env.repositoryURL,
 			},
 		},
@@ -44,35 +44,150 @@ func TestClient_GetComponentVersion(t *testing.T) {
 	assert.Equal(t, cs.Spec.Component, cva.GetName())
 }
 
-func TestClient_GetLatestComponentVersion(t *testing.T) {
-	fakeKubeClient := env.FakeKubeClient()
-	ocmClient := NewClient(fakeKubeClient)
-	component := "github.com/skarlso/ocm-demo-index"
-
-	err := env.AddComponentVersionToRepository(Component{
-		Name:    component,
-		Version: "v0.0.5",
-	})
-	require.NoError(t, err)
-
-	cs := &v1alpha12.ComponentSubscription{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-name",
-			Namespace: "default",
-		},
-		Spec: v1alpha12.ComponentSubscriptionSpec{
-			Component: component,
-			Semver:    "v0.0.1",
-			Source: v1alpha12.OCMRepository{
-				URL: env.repositoryURL,
+func TestClient_GetLatestValidComponentVersion(t *testing.T) {
+	testCases := []struct {
+		name             string
+		componentVersion func(name string) *v1alpha1.ComponentSubscription
+		setupComponents  func(name string) error
+		expectedVersion  string
+	}{
+		{
+			name: "semver constraint works for greater versions",
+			componentVersion: func(name string) *v1alpha1.ComponentSubscription {
+				return &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: name,
+						Semver:    ">v0.0.1",
+						Source: v1alpha1.OCMRepository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
 			},
+			setupComponents: func(name string) error {
+				// v0.0.1 should not be chosen.
+				for _, v := range []string{"v0.0.1", "v0.0.5"} {
+					if err := env.AddComponentVersionToRepository(Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			expectedVersion: "v0.0.5",
 		},
-		Status: v1alpha12.ComponentSubscriptionStatus{},
+		{
+			name: "semver is a concrete match with multiple versions",
+			componentVersion: func(name string) *v1alpha1.ComponentSubscription {
+				return &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: name,
+						Semver:    "v0.0.1",
+						Source: v1alpha1.OCMRepository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
+			},
+			setupComponents: func(name string) error {
+				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
+					if err := env.AddComponentVersionToRepository(Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			expectedVersion: "v0.0.1",
+		},
+		{
+			name: "semver is in between available versions should return the one that's still matching instead of the latest available",
+			componentVersion: func(name string) *v1alpha1.ComponentSubscription {
+				return &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: name,
+						Semver:    "<=v0.0.2",
+						Source: v1alpha1.OCMRepository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
+			},
+			setupComponents: func(name string) error {
+				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
+					if err := env.AddComponentVersionToRepository(Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			expectedVersion: "v0.0.2",
+		},
+		{
+			name: "using = should still work as expected",
+			componentVersion: func(name string) *v1alpha1.ComponentSubscription {
+				return &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: name,
+						Semver:    "=v0.0.1",
+						Source: v1alpha1.OCMRepository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
+			},
+			setupComponents: func(name string) error {
+				for _, v := range []string{"v0.0.1", "v0.0.2"} {
+					if err := env.AddComponentVersionToRepository(Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			expectedVersion: "v0.0.1",
+		},
 	}
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			fakeKubeClient := env.FakeKubeClient()
+			ocmClient := NewClient(fakeKubeClient)
+			component := "github.com/skarlso/ocm-demo-index"
 
-	latest, err := ocmClient.GetLatestSourceComponentVersion(context.Background(), cs)
-	assert.NoError(t, err)
-	assert.Equal(t, "v0.0.5", latest)
+			err := tt.setupComponents(component)
+			require.NoError(t, err)
+			cv := tt.componentVersion(component)
+
+			latest, err := ocmClient.GetLatestSourceComponentVersion(context.Background(), cv)
+			assert.NoError(t, err)
+			assert.Equal(t, tt.expectedVersion, latest)
+		})
+	}
 }
 
 func TestClient_VerifyComponent(t *testing.T) {
@@ -105,21 +220,21 @@ func TestClient_VerifyComponent(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cv := &v1alpha12.ComponentSubscription{
+	cv := &v1alpha1.ComponentSubscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
 			Namespace: "default",
 		},
-		Spec: v1alpha12.ComponentSubscriptionSpec{
+		Spec: v1alpha1.ComponentSubscriptionSpec{
 			Component: component,
-			Source: v1alpha12.OCMRepository{
+			Source: v1alpha1.OCMRepository{
 				URL: env.repositoryURL,
 			},
-			Verify: []v1alpha12.Signature{
+			Verify: []v1alpha1.Signature{
 				{
 					Name: Signature,
-					PublicKey: v1alpha12.SecretRef{
-						SecretRef: v1alpha12.Ref{
+					PublicKey: v1alpha1.SecretRef{
+						SecretRef: v1alpha1.Ref{
 							Name: secretName,
 						},
 					},
@@ -163,21 +278,21 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	cv := &v1alpha12.ComponentSubscription{
+	cv := &v1alpha1.ComponentSubscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
 			Namespace: "default",
 		},
-		Spec: v1alpha12.ComponentSubscriptionSpec{
+		Spec: v1alpha1.ComponentSubscriptionSpec{
 			Component: component,
-			Source: v1alpha12.OCMRepository{
+			Source: v1alpha1.OCMRepository{
 				URL: env.repositoryURL,
 			},
-			Verify: []v1alpha12.Signature{
+			Verify: []v1alpha1.Signature{
 				{
 					Name: Signature,
-					PublicKey: v1alpha12.SecretRef{
-						SecretRef: v1alpha12.Ref{
+					PublicKey: v1alpha1.SecretRef{
+						SecretRef: v1alpha1.Ref{
 							Name: secretName,
 						},
 					},

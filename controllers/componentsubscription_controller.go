@@ -145,12 +145,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
-	constraint, err := semver.NewConstraint(obj.Spec.Semver)
-	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SemverConversionFailedReason, err.Error())
-		return ctrl.Result{}, fmt.Errorf("failed to parse semver constraint: %w", err)
-	}
-	current, err := semver.NewVersion(version)
+	latestSourceComponentVersion, err := semver.NewVersion(version)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("failed to parse version: %w", err)
 	}
@@ -168,35 +163,30 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	log.V(4).Info("latest replicated version is", "replicated", replicatedVersion.Original())
 
-	if !constraint.Check(current) {
-		log.Info("version did not satisfy constraint, skipping...", "version", version, "constraint", constraint.String())
-		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-	}
-
-	if current.LessThan(replicatedVersion) || current.Equal(replicatedVersion) {
-		log.Info("no new version found", "version", current.Original(), "latest", replicatedVersion.Original())
+	if latestSourceComponentVersion.LessThan(replicatedVersion) || latestSourceComponentVersion.Equal(replicatedVersion) {
+		log.Info("no new version found", "version", latestSourceComponentVersion.Original(), "latest", replicatedVersion.Original())
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
 	// set latest version, this will be patched in the defer statement.
-	obj.Status.LatestVersion = current.Original()
+	obj.Status.LatestVersion = latestSourceComponentVersion.Original()
 	obj.Status.ReplicatedVersion = replicatedVersion.Original()
 
-	sourceComponentVersion, err := r.OCMClient.GetComponentVersion(ctx, obj, current.Original())
+	sourceComponentVersion, err := r.OCMClient.GetComponentVersion(ctx, obj, latestSourceComponentVersion.Original())
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to get latest component version: %w", err)
 	}
 	log.V(4).Info("pulling", "component-name", sourceComponentVersion.GetName())
 
-	if err := r.OCMClient.TransferComponent(ctx, obj, sourceComponentVersion, current.Original()); err != nil {
+	if err := r.OCMClient.TransferComponent(ctx, obj, sourceComponentVersion, latestSourceComponentVersion.Original()); err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.TransferFailedReason, err.Error())
 		log.Error(err, "transferring components failed")
 		return ctrl.Result{}, fmt.Errorf("failed to transfer components: %w", err)
 	}
 
 	// Update the replicated version to the latest version
-	obj.Status.ReplicatedVersion = current.Original()
+	obj.Status.ReplicatedVersion = latestSourceComponentVersion.Original()
 
 	// Always requeue to constantly check for new versions.
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
