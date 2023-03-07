@@ -9,6 +9,9 @@ on:
         required: false
         default: false
 
+permissions:
+  contents: read
+
 env:
   REGISTRY: ghcr.io
   DOCKERFILE: ${{ github.workspace }}/goreleaser.dockerfile
