@@ -6,15 +6,13 @@ on:
       - main
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
   # The release-drafter action adds PR titles to the release notes once these are merged to main.
   # A draft release is kept up-to-date listing the changes for the next minor release version.
 jobs:
   update_release_draft:
-    permissions:
-      contents: write
     runs-on: ubuntu-latest
     steps:
       - uses: release-drafter/release-drafter@v5
