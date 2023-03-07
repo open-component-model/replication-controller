@@ -11,6 +11,7 @@ import (
 	"sort"
 
 	"github.com/Masterminds/semver"
+	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -198,7 +199,7 @@ func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, obj *v1alp
 		}
 	}
 
-	versions, err := c.listComponentVersions(octx, obj)
+	versions, err := c.listComponentVersions(log, octx, obj)
 	if err != nil {
 		return "", fmt.Errorf("failed to get component versions: %w", err)
 	}
@@ -211,7 +212,18 @@ func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, obj *v1alp
 		return versions[i].Semver.GreaterThan(versions[j].Semver)
 	})
 
-	return versions[0].Version, nil
+	constraint, err := semver.NewConstraint(obj.Spec.Semver)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse constraint version: %w", err)
+	}
+
+	for _, v := range versions {
+		if valid, _ := constraint.Validate(v.Semver); valid {
+			return v.Version, nil
+		}
+	}
+
+	return "", fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Semver)
 }
 
 // Version has two values to be able to sort a list but still return the actual Version.
@@ -221,7 +233,7 @@ type Version struct {
 	Version string
 }
 
-func (c *Client) listComponentVersions(octx ocm.Context, obj *v1alpha1.ComponentSubscription) ([]Version, error) {
+func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentSubscription) ([]Version, error) {
 	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
@@ -244,7 +256,8 @@ func (c *Client) listComponentVersions(octx ocm.Context, obj *v1alpha1.Component
 	for _, v := range versions {
 		parsed, err := semver.NewVersion(v)
 		if err != nil {
-			return nil, fmt.Errorf("failed to parse Version '%s': %w", v, err)
+			logger.Error(err, "skipping invalid version", "version", v)
+			continue
 		}
 		result = append(result, Version{
 			Semver:  parsed,

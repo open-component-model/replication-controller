@@ -8,6 +8,7 @@ require (
 	github.com/distribution/distribution/v3 v3.0.0-20220907155224-78b9c98c5c31
 	github.com/fluxcd/pkg/apis/meta v0.19.0
 	github.com/fluxcd/pkg/runtime v0.27.0
+	github.com/go-logr/logr v1.2.3
 	github.com/open-component-model/ocm v0.1.1-0.20230209090236-5c16e986faa6
 	github.com/open-component-model/ocm-controllers-sdk v0.0.6
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
@@ -67,7 +68,6 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fvbommel/sortorder v1.0.2 // indirect
 	github.com/ghodss/yaml v1.0.0 // indirect
-	github.com/go-logr/logr v1.2.3 // indirect
 	github.com/go-logr/zapr v1.2.3 // indirect
 	github.com/go-openapi/jsonpointer v0.19.5 // indirect
 	github.com/go-openapi/jsonreference v0.20.0 // indirect
