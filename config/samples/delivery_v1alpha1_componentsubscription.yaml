@@ -1,31 +1,22 @@
 apiVersion: delivery.ocm.software/v1alpha1
 kind: ComponentSubscription
 metadata:
-  labels:
-    app.kubernetes.io/name: componentsubscription
-    app.kubernetes.io/instance: componentsubscription-sample
-    app.kubernetes.io/part-of: replication-controller
-    app.kuberentes.io/managed-by: kustomize
-    app.kubernetes.io/created-by: replication-controller
-  name: componentsubscription-sample
+  name: podify-subscription
   namespace: ocm-system
 spec:
   source:
     secretRef:
-      name: source-access-secret
-    url: oci://source
+      name: creds
+    url: ghcr.io/phoban01/ocm-podify
   destination:
     secretRef:
-      name: destination-access-secret
-    url: oci://destination
-  component: "https://github.com/weavework/sock-shop"
-  interval: 10m0s
-  semver: "~v0.1.0"
+      name: creds
+    url: ghcr.io/skarlso/hidden/ocm-podify
+  component: "github.com/weaveworks/podify"
+  interval: 10s
+  semver: "=>v1-0"
   verify:
-    - signature:
-        name: signature-name
-        key:
-          name: verify-key-name
-status:
-  latestVersion: "v0.1.1"
-  replicatedVersion: "v0.1.0"
+    - name: phoban01
+      publicKey:
+        secretRef:
+          name: phoban01-publickey
