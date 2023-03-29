@@ -188,6 +188,11 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	// Update the replicated version to the latest version
 	obj.Status.ReplicatedVersion = latestSourceComponentVersion.Original()
 
+	// Remove any stale Ready condition, most likely False, set above. Its value
+	// is derived from the overall result of the reconciliation in the deferred
+	// block at the very end.
+	conditions.Delete(obj, meta.ReadyCondition)
+
 	// Always requeue to constantly check for new versions.
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
