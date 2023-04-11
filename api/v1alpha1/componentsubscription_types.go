@@ -8,40 +8,9 @@ package v1alpha1
 import (
 	"time"
 
+	"github.com/fluxcd/pkg/apis/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
-
-// Ref assumes that the namespace is the same as whatever the component has that is looking for this ref.
-type Ref struct {
-	Name string `json:"name"`
-}
-
-// Verify contains a ref to the key used for verification.
-type Verify struct {
-	// Name of the signature.
-	Name string `json:"name"`
-	// Key which is used for verification.
-	Key Ref `json:"key"`
-}
-
-// SecretRef clearly denotes that the requested option is a Secret.
-type SecretRef struct {
-	SecretRef Ref `json:"secretRef"`
-}
-
-// Signature defines the details of a signature to use for verification.
-type Signature struct {
-	// Name of the signature.
-	Name string `json:"name"`
-	// Key which is used for verification.
-	PublicKey SecretRef `json:"publicKey"`
-}
-
-// OCMRepository defines details for a repository, such as access keys and the url.
-type OCMRepository struct {
-	URL       string `json:"url"`
-	SecretRef *Ref   `json:"secretRef,omitempty"`
-}
 
 // ComponentSubscriptionSpec defines the desired state of ComponentSubscription
 type ComponentSubscriptionSpec struct {
@@ -56,6 +25,25 @@ type ComponentSubscriptionSpec struct {
 	//+optional
 	Semver string      `json:"semver,omitempty"`
 	Verify []Signature `json:"verify,omitempty"`
+}
+
+// Signature defines the details of a signature to use for verification.
+type Signature struct {
+	// Name of the signature.
+	Name string `json:"name"`
+	// Key which is used for verification.
+	PublicKey SecretRef `json:"publicKey"`
+}
+
+// SecretRef clearly denotes that the requested option is a Secret.
+type SecretRef struct {
+	SecretRef meta.LocalObjectReference `json:"secretRef"`
+}
+
+// OCMRepository defines details for a repository, such as access keys and the url.
+type OCMRepository struct {
+	URL       string                    `json:"url"`
+	SecretRef meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription
