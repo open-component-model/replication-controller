@@ -43,10 +43,11 @@ spec:
                   as access keys and the url.
                 properties:
                   secretRef:
-                    description: Ref assumes that the namespace is the same as whatever
-                      the component has that is looking for this ref.
+                    description: LocalObjectReference contains enough information
+                      to locate the referenced Kubernetes resource object.
                     properties:
                       name:
+                        description: Name of the referent.
                         type: string
                     required:
                     - name
@@ -69,10 +70,11 @@ spec:
                   as access keys and the url.
                 properties:
                   secretRef:
-                    description: Ref assumes that the namespace is the same as whatever
-                      the component has that is looking for this ref.
+                    description: LocalObjectReference contains enough information
+                      to locate the referenced Kubernetes resource object.
                     properties:
                       name:
+                        description: Name of the referent.
                         type: string
                     required:
                     - name
@@ -94,11 +96,11 @@ spec:
                       description: Key which is used for verification.
                       properties:
                         secretRef:
-                          description: Ref assumes that the namespace is the same
-                            as whatever the component has that is looking for this
-                            ref.
+                          description: LocalObjectReference contains enough information
+                            to locate the referenced Kubernetes resource object.
                           properties:
                             name:
+                              description: Name of the referent.
                               type: string
                           required:
                           - name

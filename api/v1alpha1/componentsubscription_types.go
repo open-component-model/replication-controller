@@ -30,8 +30,11 @@ type ComponentSubscriptionSpec struct {
 // Signature defines the details of a signature to use for verification.
 type Signature struct {
 	// Name of the signature.
+	// +required
 	Name string `json:"name"`
+
 	// Key which is used for verification.
+	// +required
 	PublicKey SecretRef `json:"publicKey"`
 }
 
@@ -42,8 +45,11 @@ type SecretRef struct {
 
 // OCMRepository defines details for a repository, such as access keys and the url.
 type OCMRepository struct {
-	URL       string                    `json:"url"`
-	SecretRef meta.LocalObjectReference `json:"secretRef,omitempty"`
+	// +required
+	URL string `json:"url"`
+
+	// +optional
+	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription
