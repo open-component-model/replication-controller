@@ -274,13 +274,23 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	// configure registry credentials
 	if obj.Spec.Source.SecretRef != nil {
 		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find credentials")
+			log.V(4).Error(err, "failed to find source credentials")
+			// ignore not found errors for now
+			if !apierrors.IsNotFound(err) {
+				return fmt.Errorf("failed to configure credentials for component: %w", err)
+			}
+		}
+		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Destination.URL, obj.Spec.Destination.SecretRef.Name, obj.Namespace); err != nil {
+			log.V(4).Error(err, "failed to find destination credentials")
 			// ignore not found errors for now
 			if !apierrors.IsNotFound(err) {
 				return fmt.Errorf("failed to configure credentials for component: %w", err)
 			}
 		}
 	}
+
+	log.V(4).Info("credentials configured")
+
 	source, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
 	if err != nil {
 		return fmt.Errorf("failed to get source repo: %w", err)
