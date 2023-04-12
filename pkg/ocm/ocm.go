@@ -20,7 +20,7 @@ import (
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/standard"
@@ -74,9 +74,10 @@ func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.Componen
 		return nil, fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
 
-	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
+	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
+	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+		panic(err)
 	}
 	defer repo.Close()
 
@@ -93,13 +94,18 @@ func (c *Client) VerifySourceComponent(ctx context.Context, obj *v1alpha1.Compon
 
 	octx := ocm.ForContext(ctx)
 
+	if err := c.maybeConfigureServiceAccountAccess(ctx, octx, obj); err != nil {
+		return false, fmt.Errorf("failed to configure service account access: %w", err)
+	}
+
 	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
 		return false, fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
 
-	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
+	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
+	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
-		return false, fmt.Errorf("failed to get repository for spec: %w", err)
+		panic(err)
 	}
 	defer repo.Close()
 
@@ -179,6 +185,10 @@ func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, obj *v1alp
 
 	octx := ocm.ForContext(ctx)
 
+	if err := c.maybeConfigureServiceAccountAccess(ctx, octx, obj); err != nil {
+		return "", fmt.Errorf("failed to configure service account access: %w", err)
+	}
+
 	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
 		return "", fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
@@ -218,9 +228,10 @@ type Version struct {
 }
 
 func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentSubscription) ([]Version, error) {
-	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
+	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
+	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+		panic(err)
 	}
 	defer repo.Close()
 
@@ -262,10 +273,12 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 		return fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
 
-	source, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
+	sourceRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
+	source, err := octx.RepositoryForSpec(sourceRepoSpec)
 	if err != nil {
-		return fmt.Errorf("failed to get source repo: %w", err)
+		panic(err)
 	}
+	defer source.Close()
 
 	ok, err := c.VerifySourceComponent(ctx, obj, version)
 	if err != nil {
@@ -275,10 +288,12 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 		return fmt.Errorf("on of the signatures failed to match: %w", err)
 	}
 
-	target, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Destination.URL, nil))
+	targetRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Destination.URL, nil)
+	target, err := octx.RepositoryForSpec(targetRepoSpec)
 	if err != nil {
-		return fmt.Errorf("failed to get target repo: %w", err)
+		panic(err)
 	}
+	defer source.Close()
 
 	handler, err := standard.New(
 		standard.Recursive(true),
@@ -326,6 +341,10 @@ func (c *Client) maybeConfigureAccessCredentials(ctx context.Context, ocmCtx ocm
 }
 
 func (c *Client) maybeConfigureServiceAccountAccess(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription) error {
+	logger := log.FromContext(ctx)
+
+	logger.V(4).Info("configuring service account credentials")
+
 	if obj.Spec.ServiceAccountName == "" {
 		return nil
 	}
@@ -337,6 +356,8 @@ func (c *Client) maybeConfigureServiceAccountAccess(ctx context.Context, octx oc
 	}, account); err != nil {
 		return fmt.Errorf("failed to fetch service account: %w", err)
 	}
+
+	logger.V(4).Info("got service account", "name", account.GetName())
 
 	for _, imagePullSecret := range account.ImagePullSecrets {
 		secret := &corev1.Secret{}
@@ -353,7 +374,7 @@ func (c *Client) maybeConfigureServiceAccountAccess(ctx context.Context, octx oc
 			return fmt.Errorf("failed to find .dockerconfigjson in secret %s", secret.Name)
 		}
 
-		repository := dockerconfig.NewRepositorySpecForConfig(data)
+		repository := dockerconfig.NewRepositorySpecForConfig(data, true)
 
 		if _, err := octx.CredentialsContext().RepositoryForSpec(repository); err != nil {
 			return fmt.Errorf("failed to configure credentials for repository: %w", err)
