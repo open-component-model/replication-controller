@@ -179,10 +179,14 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	}
 	log.V(4).Info("pulling", "component-name", sourceComponentVersion.GetName())
 
-	if err := r.OCMClient.TransferComponent(ctx, obj, sourceComponentVersion, latestSourceComponentVersion.Original()); err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.TransferFailedReason, err.Error())
-		log.Error(err, "transferring components failed")
-		return ctrl.Result{}, fmt.Errorf("failed to transfer components: %w", err)
+	if obj.Spec.Destination != nil {
+		if err := r.OCMClient.TransferComponent(ctx, obj, sourceComponentVersion, latestSourceComponentVersion.Original()); err != nil {
+			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.TransferFailedReason, err.Error())
+			log.Error(err, "transferring components failed")
+			return ctrl.Result{}, fmt.Errorf("failed to transfer components: %w", err)
+		}
+	} else {
+		log.Info("skipping transferring as no destination is provided for source component", "component-name", sourceComponentVersion.GetName())
 	}
 
 	// Update the replicated version to the latest version

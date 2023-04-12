@@ -65,6 +65,41 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			},
 		},
 		{
+			name: "no transfer is called if destination is left empty",
+			subscription: func() *v1alpha12.ComponentSubscription {
+				cv := DefaultComponentSubscription.DeepCopy()
+				cv.Spec.Destination = nil
+				return cv
+			},
+			setupMock: func(fakeOcm *fakes.MockFetcher) {
+				root := &mockComponent{
+					t: t,
+					descriptor: &ocmdesc.ComponentDescriptor{
+						ComponentSpec: ocmdesc.ComponentSpec{
+							ObjectMeta: v1.ObjectMeta{
+								Name:    "github.com/open-component-model/component",
+								Version: "v0.0.1",
+							},
+							References: ocmdesc.References{
+								{
+									ElementMeta: ocmdesc.ElementMeta{
+										Name:    "test-ref-1",
+										Version: "v0.0.1",
+									},
+									ComponentName: "github.com/skarlso/embedded",
+								},
+							},
+						},
+					},
+				}
+				fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
+				fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+			},
+			verifyMock: func(fetcher *fakes.MockFetcher) bool {
+				return fetcher.TransferComponentWasNotCalled()
+			},
+		},
+		{
 			name: "reconciling doesn't happen if version was already reconciled",
 			subscription: func() *v1alpha12.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()

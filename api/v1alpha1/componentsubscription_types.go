@@ -19,9 +19,9 @@ type ComponentSubscriptionSpec struct {
 	// +required
 	Interval metav1.Duration `json:"interval"`
 
-	Source      OCMRepository `json:"source"`
-	Destination OCMRepository `json:"destination"`
-	Component   string        `json:"component"`
+	Source      OCMRepository  `json:"source"`
+	Destination *OCMRepository `json:"destination,omitempty"`
+	Component   string         `json:"component"`
 	//+optional
 	Semver string      `json:"semver,omitempty"`
 	Verify []Signature `json:"verify,omitempty"`
