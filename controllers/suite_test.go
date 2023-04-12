@@ -67,7 +67,7 @@ var (
 					Name: "source-secret",
 				},
 			},
-			Destination: v1alpha1.OCMRepository{
+			Destination: &v1alpha1.OCMRepository{
 				URL: "https://destination.com",
 				SecretRef: &meta.LocalObjectReference{
 					Name: "destination-secret",

@@ -280,6 +280,10 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 				return fmt.Errorf("failed to configure credentials for component: %w", err)
 			}
 		}
+	}
+
+	// We don't need to check for Destination being nil, the trans flow is skipped in that case completely.
+	if obj.Spec.Destination.SecretRef != nil {
 		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Destination.URL, obj.Spec.Destination.SecretRef.Name, obj.Namespace); err != nil {
 			log.V(4).Error(err, "failed to find destination credentials")
 			// ignore not found errors for now

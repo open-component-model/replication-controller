@@ -91,7 +91,11 @@ func (in *ComponentSubscriptionSpec) DeepCopyInto(out *ComponentSubscriptionSpec
 	*out = *in
 	out.Interval = in.Interval
 	in.Source.DeepCopyInto(&out.Source)
-	in.Destination.DeepCopyInto(&out.Destination)
+	if in.Destination != nil {
+		in, out := &in.Destination, &out.Destination
+		*out = new(OCMRepository)
+		(*in).DeepCopyInto(*out)
+	}
 	if in.Verify != nil {
 		in, out := &in.Verify, &out.Verify
 		*out = make([]Signature, len(*in))
