@@ -12,6 +12,7 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/go-logr/logr"
+	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -64,6 +65,10 @@ func NewClient(client client.Client) *Client {
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
 func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
 	octx := ocm.ForContext(ctx)
+
+	if err := c.maybeConfigureServiceAccountAccess(ctx, octx, obj); err != nil {
+		return nil, fmt.Errorf("failed to configure service account access: %w", err)
+	}
 
 	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
 		return nil, fmt.Errorf("failed to configure credentials for destination: %w", err)
@@ -299,54 +304,16 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	return nil
 }
 
-func (c *Client) fetchSecretFromCredentials(ctx context.Context, creds *v1alpha1.Credentials, namespace string) (string, error) {
-	if creds.SecretRef != nil {
-		return creds.SecretRef.Name, nil
-	}
-
-	account := &corev1.ServiceAccount{}
-	if err := c.client.Get(ctx, types.NamespacedName{
-		Name:      creds.ServiceAccountName,
-		Namespace: namespace,
-	}, account); err != nil {
-		return "", fmt.Errorf("failed to fetch service account: %w", err)
-	}
-
-	switch {
-	case len(account.ImagePullSecrets) > 0 && len(account.Secrets) > 0:
-		return "", fmt.Errorf("can't define both secrets and imagePullSecrets")
-	case len(account.ImagePullSecrets) > 0:
-		if len(account.ImagePullSecrets) != 1 {
-			return "", fmt.Errorf("expect one (and only one) image pull secret to be defined, got: %d", len(account.ImagePullSecrets))
-		}
-
-		return account.ImagePullSecrets[0].Name, nil
-	case len(account.Secrets) > 0:
-		if len(account.Secrets) != 1 {
-			return "", fmt.Errorf("expect one (and only one) secret to be defined, got: %d", len(account.ImagePullSecrets))
-		}
-
-		return account.Secrets[0].Name, nil
-	default:
-		return "", fmt.Errorf("expected either secrets or image pull secrets to be defined")
-	}
-}
-
 // maybeConfigureAccessCredentials configures access credentials if needed for a source/destination repository.
 func (c *Client) maybeConfigureAccessCredentials(ctx context.Context, ocmCtx ocm.Context, repository v1alpha1.OCMRepository, namespace string) error {
 	// If there are no credentials, this call is a no-op.
-	if repository.Credentials == nil {
+	if repository.SecretRef == nil {
 		return nil
 	}
 
 	logger := log.FromContext(ctx)
 
-	name, err := c.fetchSecretFromCredentials(ctx, repository.Credentials, namespace)
-	if err != nil {
-		return fmt.Errorf("failed to fetch credentials: %w", err)
-	}
-
-	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, name, namespace); err != nil {
+	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, repository.SecretRef.Name, namespace); err != nil {
 		logger.V(4).Error(err, "failed to find destination credentials")
 
 		// we don't ignore not found errors
@@ -354,6 +321,44 @@ func (c *Client) maybeConfigureAccessCredentials(ctx context.Context, ocmCtx ocm
 	}
 
 	logger.V(4).Info("credentials configured")
+
+	return nil
+}
+
+func (c *Client) maybeConfigureServiceAccountAccess(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription) error {
+	if obj.Spec.ServiceAccountName == "" {
+		return nil
+	}
+
+	account := &corev1.ServiceAccount{}
+	if err := c.client.Get(ctx, types.NamespacedName{
+		Name:      obj.Spec.ServiceAccountName,
+		Namespace: obj.Namespace,
+	}, account); err != nil {
+		return fmt.Errorf("failed to fetch service account: %w", err)
+	}
+
+	for _, imagePullSecret := range account.ImagePullSecrets {
+		secret := &corev1.Secret{}
+
+		if err := c.client.Get(ctx, types.NamespacedName{
+			Name:      imagePullSecret.Name,
+			Namespace: obj.Namespace,
+		}, secret); err != nil {
+			return fmt.Errorf("failed to get image pull secret: %w", err)
+		}
+
+		data, ok := secret.Data[".dockerconfigjson"]
+		if !ok {
+			return fmt.Errorf("failed to find .dockerconfigjson in secret %s", secret.Name)
+		}
+
+		repository := dockerconfig.NewRepositorySpecForConfig(data)
+
+		if _, err := octx.CredentialsContext().RepositoryForSpec(repository); err != nil {
+			return fmt.Errorf("failed to configure credentials for repository: %w", err)
+		}
+	}
 
 	return nil
 }
