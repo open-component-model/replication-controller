@@ -5,12 +5,13 @@ metadata:
   namespace: ocm-system
 spec:
   source:
-    secretRef:
-      name: creds
+    credentials:
+      secretRef:
+        name: creds
     url: ghcr.io/phoban01/ocm-podify
   destination:
-    secretRef:
-      name: creds
+    credentials:
+      serviceAccountName: service-account-for-destination
     url: ghcr.io/skarlso/hidden/ocm-podify
   component: "github.com/weaveworks/podify"
   interval: 10s

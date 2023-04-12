@@ -42,15 +42,25 @@ spec:
                 description: OCMRepository defines details for a repository, such
                   as access keys and the url.
                 properties:
-                  secretRef:
-                    description: LocalObjectReference contains enough information
-                      to locate the referenced Kubernetes resource object.
+                  credentials:
+                    description: Credentials defines access to the given repository.
                     properties:
-                      name:
-                        description: Name of the referent.
+                      secretRef:
+                        description: LocalObjectReference contains enough information
+                          to locate the referenced Kubernetes resource object.
+                        properties:
+                          name:
+                            description: Name of the referent.
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      serviceAccountName:
+                        description: 'ServiceAccountName is the name of the Kubernetes
+                          ServiceAccount used to authenticate the image pull if the
+                          service account has attached pull secrets. For more information:
+                          https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account'
                         type: string
-                    required:
-                    - name
                     type: object
                   url:
                     type: string
@@ -69,15 +79,25 @@ spec:
                 description: OCMRepository defines details for a repository, such
                   as access keys and the url.
                 properties:
-                  secretRef:
-                    description: LocalObjectReference contains enough information
-                      to locate the referenced Kubernetes resource object.
+                  credentials:
+                    description: Credentials defines access to the given repository.
                     properties:
-                      name:
-                        description: Name of the referent.
+                      secretRef:
+                        description: LocalObjectReference contains enough information
+                          to locate the referenced Kubernetes resource object.
+                        properties:
+                          name:
+                            description: Name of the referent.
+                            type: string
+                        required:
+                        - name
+                        type: object
+                      serviceAccountName:
+                        description: 'ServiceAccountName is the name of the Kubernetes
+                          ServiceAccount used to authenticate the image pull if the
+                          service account has attached pull secrets. For more information:
+                          https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account'
                         type: string
-                    required:
-                    - name
                     type: object
                   url:
                     type: string

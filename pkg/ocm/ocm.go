@@ -13,7 +13,7 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -63,19 +63,12 @@ func NewClient(client client.Client) *Client {
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
 func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
-	log := log.FromContext(ctx)
-
 	octx := ocm.ForContext(ctx)
-	// configure registry credentials
-	if obj.Spec.Source.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return nil, fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
+
+	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
+		return nil, fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
+
 	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
@@ -95,15 +88,8 @@ func (c *Client) VerifySourceComponent(ctx context.Context, obj *v1alpha1.Compon
 
 	octx := ocm.ForContext(ctx)
 
-	// configure registry credentials
-	if obj.Spec.Source.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return false, fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
+	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
+		return false, fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
 
 	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
@@ -188,15 +174,8 @@ func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, obj *v1alp
 
 	octx := ocm.ForContext(ctx)
 
-	// configure registry credentials
-	if obj.Spec.Source.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return "", fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
+	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
+		return "", fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
 
 	versions, err := c.listComponentVersions(log, octx, obj)
@@ -268,32 +247,15 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 }
 
 func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
-	log := log.FromContext(ctx)
 	octx := ocm.ForContext(ctx)
 
-	// configure registry credentials
-	if obj.Spec.Source.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find source credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
+	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
+		return fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
 
-	// We don't need to check for Destination being nil, the trans flow is skipped in that case completely.
-	if obj.Spec.Destination.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Destination.URL, obj.Spec.Destination.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find destination credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
+	if err := c.maybeConfigureAccessCredentials(ctx, octx, *obj.Spec.Destination, obj.Namespace); err != nil {
+		return fmt.Errorf("failed to configure credentials for destination: %w", err)
 	}
-
-	log.V(4).Info("credentials configured")
 
 	source, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
 	if err != nil {
@@ -333,6 +295,65 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	); err != nil {
 		return fmt.Errorf("failed to transfer version to destination repository: %w", err)
 	}
+
+	return nil
+}
+
+func (c *Client) fetchSecretFromCredentials(ctx context.Context, creds *v1alpha1.Credentials, namespace string) (string, error) {
+	if creds.SecretRef != nil {
+		return creds.SecretRef.Name, nil
+	}
+
+	account := &corev1.ServiceAccount{}
+	if err := c.client.Get(ctx, types.NamespacedName{
+		Name:      creds.ServiceAccountName,
+		Namespace: namespace,
+	}, account); err != nil {
+		return "", fmt.Errorf("failed to fetch service account: %w", err)
+	}
+
+	switch {
+	case len(account.ImagePullSecrets) > 0 && len(account.Secrets) > 0:
+		return "", fmt.Errorf("can't define both secrets and imagePullSecrets")
+	case len(account.ImagePullSecrets) > 0:
+		if len(account.ImagePullSecrets) != 1 {
+			return "", fmt.Errorf("expect one (and only one) image pull secret to be defined, got: %d", len(account.ImagePullSecrets))
+		}
+
+		return account.ImagePullSecrets[0].Name, nil
+	case len(account.Secrets) > 0:
+		if len(account.Secrets) != 1 {
+			return "", fmt.Errorf("expect one (and only one) secret to be defined, got: %d", len(account.ImagePullSecrets))
+		}
+
+		return account.Secrets[0].Name, nil
+	default:
+		return "", fmt.Errorf("expected either secrets or image pull secrets to be defined")
+	}
+}
+
+// maybeConfigureAccessCredentials configures access credentials if needed for a source/destination repository.
+func (c *Client) maybeConfigureAccessCredentials(ctx context.Context, ocmCtx ocm.Context, repository v1alpha1.OCMRepository, namespace string) error {
+	// If there are no credentials, this call is a no-op.
+	if repository.Credentials == nil {
+		return nil
+	}
+
+	logger := log.FromContext(ctx)
+
+	name, err := c.fetchSecretFromCredentials(ctx, repository.Credentials, namespace)
+	if err != nil {
+		return fmt.Errorf("failed to fetch credentials: %w", err)
+	}
+
+	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, name, namespace); err != nil {
+		logger.V(4).Error(err, "failed to find destination credentials")
+
+		// we don't ignore not found errors
+		return fmt.Errorf("failed to configure credentials for component: %w", err)
+	}
+
+	logger.V(4).Info("credentials configured")
 
 	return nil
 }

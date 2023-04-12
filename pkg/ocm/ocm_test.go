@@ -13,10 +13,208 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 func TestClient_GetComponentVersion(t *testing.T) {
-	fakeKubeClient := env.FakeKubeClient()
+	testCases := []struct {
+		name         string
+		subscription func(component string, objs *[]client.Object) *v1alpha1.ComponentSubscription
+	}{
+		{
+			name: "plain component access",
+			subscription: func(component string, objs *[]client.Object) *v1alpha1.ComponentSubscription {
+				return &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: component,
+						Semver:    "v0.0.1",
+						Source: v1alpha1.OCMRepository{
+							URL: env.repositoryURL,
+						},
+					},
+				}
+			},
+		},
+		{
+			name: "component access with secret ref",
+			subscription: func(component string, objs *[]client.Object) *v1alpha1.ComponentSubscription {
+				cs := &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: component,
+						Semver:    "v0.0.1",
+						Source: v1alpha1.OCMRepository{
+							URL: env.repositoryURL,
+							Credentials: &v1alpha1.Credentials{
+								SecretRef: &meta.LocalObjectReference{
+									Name: "test-name-secret",
+								},
+							},
+						},
+					},
+				}
+				testSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name-secret",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"token": []byte("token"),
+					},
+					Type: "Opaque",
+				}
+
+				*objs = append(*objs, cs, testSecret)
+
+				return cs
+			},
+		},
+		{
+			name: "component access with service account and image pull secret",
+			subscription: func(component string, objs *[]client.Object) *v1alpha1.ComponentSubscription {
+				cs := &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: component,
+						Semver:    "v0.0.1",
+						Source: v1alpha1.OCMRepository{
+							URL: env.repositoryURL,
+							Credentials: &v1alpha1.Credentials{
+								ServiceAccountName: "test-service-account",
+							},
+						},
+					},
+				}
+				serviceAccount := &corev1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-service-account",
+						Namespace: "default",
+					},
+					ImagePullSecrets: []corev1.LocalObjectReference{
+						{
+							Name: "test-name-secret",
+						},
+					},
+				}
+				testSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name-secret",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"token": []byte("token"),
+					},
+					Type: "Opaque",
+				}
+
+				*objs = append(*objs, cs, testSecret, serviceAccount)
+
+				return cs
+			},
+		},
+		{
+			name: "component access with service account and secrets",
+			subscription: func(component string, objs *[]client.Object) *v1alpha1.ComponentSubscription {
+				cs := &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: component,
+						Semver:    "v0.0.1",
+						Source: v1alpha1.OCMRepository{
+							URL: env.repositoryURL,
+							Credentials: &v1alpha1.Credentials{
+								ServiceAccountName: "test-service-account",
+							},
+						},
+					},
+				}
+				serviceAccount := &corev1.ServiceAccount{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-service-account",
+						Namespace: "default",
+					},
+					Secrets: []corev1.ObjectReference{
+						{
+							Name:      "test-name-secret",
+							Namespace: "default",
+						},
+					},
+				}
+				testSecret := &corev1.Secret{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name-secret",
+						Namespace: "default",
+					},
+					Data: map[string][]byte{
+						"token": []byte("token"),
+					},
+					Type: "Opaque",
+				}
+
+				*objs = append(*objs, cs, testSecret, serviceAccount)
+
+				return cs
+			},
+		},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Helper()
+
+			objs := make([]client.Object, 0)
+			component := "github.com/skarlso/ocm-demo-index"
+			cs := tt.subscription(component, &objs)
+			fakeKubeClient := env.FakeKubeClient(WithObjets(objs...))
+
+			ocmClient := NewClient(fakeKubeClient)
+			err := env.AddComponentVersionToRepository(Component{
+				Name:    component,
+				Version: "v0.0.1",
+			})
+			require.NoError(t, err)
+
+			cva, err := ocmClient.GetComponentVersion(context.Background(), cs, "v0.0.1")
+			assert.NoError(t, err)
+
+			assert.Equal(t, cs.Spec.Component, cva.GetName())
+		})
+	}
+}
+
+func TestClient_GetComponentVersionWithCredentialsServiceAccountWithSecrets(t *testing.T) {
+	//account := &corev1.ServiceAccount{
+	//	TypeMeta:         metav1.TypeMeta{},
+	//	ObjectMeta:       metav1.ObjectMeta{},
+	//	Secrets:          nil,
+	//	ImagePullSecrets: nil,
+	//}
+
+	testSecret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name-secret",
+			Namespace: "default",
+		},
+		Data: map[string][]byte{
+			"token": []byte("token"),
+		},
+		Type: "Opaque",
+	}
+
+	fakeKubeClient := env.FakeKubeClient(WithObjets(testSecret))
 	ocmClient := NewClient(fakeKubeClient)
 	component := "github.com/skarlso/ocm-demo-index"
 
@@ -36,6 +234,11 @@ func TestClient_GetComponentVersion(t *testing.T) {
 			Semver:    "v0.0.1",
 			Source: v1alpha1.OCMRepository{
 				URL: env.repositoryURL,
+				Credentials: &v1alpha1.Credentials{
+					SecretRef: &meta.LocalObjectReference{
+						Name: "test-name-secret",
+					},
+				},
 			},
 		},
 	}

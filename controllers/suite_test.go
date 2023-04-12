@@ -63,14 +63,18 @@ var (
 			Interval: metav1.Duration{Duration: 10 * time.Second},
 			Source: v1alpha1.OCMRepository{
 				URL: "https://source.com",
-				SecretRef: &meta.LocalObjectReference{
-					Name: "source-secret",
+				Credentials: &v1alpha1.Credentials{
+					SecretRef: &meta.LocalObjectReference{
+						Name: "source-secret",
+					},
 				},
 			},
 			Destination: &v1alpha1.OCMRepository{
 				URL: "https://destination.com",
-				SecretRef: &meta.LocalObjectReference{
-					Name: "destination-secret",
+				Credentials: &v1alpha1.Credentials{
+					SecretRef: &meta.LocalObjectReference{
+						Name: "destination-secret",
+					},
 				},
 			},
 			Component: "github.com/open-component-model/component",
