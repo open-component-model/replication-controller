@@ -231,7 +231,7 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
 	}
 	defer repo.Close()
 
@@ -266,7 +266,7 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	octx := ocm.ForContext(ctx)
 
 	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
-		return fmt.Errorf("failed to configure credentials for destination: %w", err)
+		return fmt.Errorf("failed to configure credentials for source: %w", err)
 	}
 
 	if err := c.maybeConfigureAccessCredentials(ctx, octx, *obj.Spec.Destination, obj.Namespace); err != nil {
@@ -276,7 +276,7 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	sourceRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
 	source, err := octx.RepositoryForSpec(sourceRepoSpec)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to get source repo: %w", err)
 	}
 	defer source.Close()
 
@@ -291,9 +291,9 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	targetRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Destination.URL, nil)
 	target, err := octx.RepositoryForSpec(targetRepoSpec)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("failed to get target repo: %w", err)
 	}
-	defer source.Close()
+	defer target.Close()
 
 	handler, err := standard.New(
 		standard.Recursive(true),

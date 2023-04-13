@@ -179,6 +179,8 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to get latest component version: %w", err)
 	}
+	defer sourceComponentVersion.Close()
+
 	log.V(4).Info("pulling", "component-name", sourceComponentVersion.GetName())
 
 	if obj.Spec.Destination != nil {
