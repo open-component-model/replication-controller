@@ -1,4 +1,3 @@
-// Copyright 2022.
 // SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Open Component Model contributors.
 //
 // SPDX-License-Identifier: Apache-2.0
@@ -34,7 +33,7 @@ type ComponentSubscriptionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 
-	OCMClient rocm.FetchVerifier
+	OCMClient rocm.Contract
 }
 
 //+kubebuilder:rbac:groups=delivery.ocm.software,resources=componentsubscriptions,verbs=get;list;watch;create;update;patch;delete
@@ -134,7 +133,12 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
-	version, err := r.OCMClient.GetLatestSourceComponentVersion(ctx, obj)
+	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, obj)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to authenticate OCM context: %w", err)
+	}
+
+	version, err := r.OCMClient.GetLatestSourceComponentVersion(ctx, octx, obj)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.PullingLatestVersionFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to get latest component version: %w", err)
@@ -174,7 +178,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	obj.Status.LatestVersion = latestSourceComponentVersion.Original()
 	obj.Status.ReplicatedVersion = replicatedVersion.Original()
 
-	sourceComponentVersion, err := r.OCMClient.GetComponentVersion(ctx, obj, latestSourceComponentVersion.Original())
+	sourceComponentVersion, err := r.OCMClient.GetComponentVersion(ctx, octx, obj, latestSourceComponentVersion.Original())
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to get latest component version: %w", err)
@@ -184,7 +188,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	log.V(4).Info("pulling", "component-name", sourceComponentVersion.GetName())
 
 	if obj.Spec.Destination != nil {
-		if err := r.OCMClient.TransferComponent(ctx, obj, sourceComponentVersion, latestSourceComponentVersion.Original()); err != nil {
+		if err := r.OCMClient.TransferComponent(ctx, octx, obj, sourceComponentVersion, latestSourceComponentVersion.Original()); err != nil {
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.TransferFailedReason, err.Error())
 			log.Error(err, "transferring components failed")
 			return ctrl.Result{}, fmt.Errorf("failed to transfer components: %w", err)

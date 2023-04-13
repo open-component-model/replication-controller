@@ -8,6 +8,7 @@ import (
 
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
 	"github.com/fluxcd/pkg/apis/meta"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -144,7 +145,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 			})
 			require.NoError(t, err)
 
-			cva, err := ocmClient.GetComponentVersion(context.Background(), cs, "v0.0.1")
+			cva, err := ocmClient.GetComponentVersion(context.Background(), ocm.New(), cs, "v0.0.1")
 			assert.NoError(t, err)
 
 			assert.Equal(t, cs.Spec.Component, cva.GetName())
@@ -291,7 +292,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			require.NoError(t, err)
 			cv := tt.componentVersion(component)
 
-			latest, err := ocmClient.GetLatestSourceComponentVersion(context.Background(), cv)
+			latest, err := ocmClient.GetLatestSourceComponentVersion(context.Background(), ocm.New(), cv)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedVersion, latest)
 		})
@@ -351,7 +352,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifySourceComponent(context.Background(), cv, "v0.0.1")
+	verified, err := ocmClient.VerifySourceComponent(context.Background(), ocm.New(), cv, "v0.0.1")
 	assert.NoError(t, err)
 	assert.True(t, verified, "verified should have been true, but it did not")
 }
@@ -409,7 +410,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifySourceComponent(context.Background(), cv, "v0.0.1")
+	verified, err := ocmClient.VerifySourceComponent(context.Background(), ocm.New(), cv, "v0.0.1")
 	require.Error(t, err)
 	assert.False(t, verified, "verified should have been false, but it did not")
 }

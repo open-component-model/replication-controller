@@ -16,21 +16,21 @@ import (
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
-	v1alpha12 "github.com/open-component-model/replication-controller/api/v1alpha1"
+	"github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/open-component-model/replication-controller/pkg/ocm/fakes"
 )
 
 func TestComponentSubscriptionReconciler(t *testing.T) {
 	testCases := []struct {
 		name         string
-		subscription func() *v1alpha12.ComponentSubscription
+		subscription func() *v1alpha1.ComponentSubscription
 		setupMock    func(*fakes.MockFetcher)
 		verifyMock   func(fetcher *fakes.MockFetcher) bool
 		err          string
 	}{
 		{
 			name: "reconcile function succeeds",
-			subscription: func() *v1alpha12.ComponentSubscription {
+			subscription: func() *v1alpha1.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()
 				return cv
 			},
@@ -61,13 +61,13 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				args := fetcher.TransferComponentCallingArgumentsOnCall(0)
 				obj, version := args[0], args[2]
-				cv := obj.(*v1alpha12.ComponentSubscription)
+				cv := obj.(*v1alpha1.ComponentSubscription)
 				return cv.Status.LatestVersion == "v0.0.1" && version.(string) == "v0.0.1"
 			},
 		},
 		{
 			name: "no transfer is called if destination is left empty",
-			subscription: func() *v1alpha12.ComponentSubscription {
+			subscription: func() *v1alpha1.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()
 				cv.Spec.Destination = nil
 				return cv
@@ -102,7 +102,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 		},
 		{
 			name: "reconciling doesn't happen if version was already reconciled",
-			subscription: func() *v1alpha12.ComponentSubscription {
+			subscription: func() *v1alpha1.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()
 				cv.Status.LatestVersion = "v0.0.1"
 				cv.Status.ReplicatedVersion = "v0.0.1"
@@ -138,7 +138,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 		},
 		{
 			name: "reconcile fails if transfer version fails",
-			subscription: func() *v1alpha12.ComponentSubscription {
+			subscription: func() *v1alpha1.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()
 				return cv
 			},
@@ -171,7 +171,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				args := fetcher.TransferComponentCallingArgumentsOnCall(0)
 				obj, version := args[0], args[2]
-				cv := obj.(*v1alpha12.ComponentSubscription)
+				cv := obj.(*v1alpha1.ComponentSubscription)
 				return cv.Status.LatestVersion == "v0.0.1" && version.(string) == "v0.0.1"
 			},
 		},

@@ -30,22 +30,13 @@ import (
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
 
-// Verifier takes a Component and runs OCM verification on it.
-type Verifier interface {
-	VerifySourceComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error)
-}
-
-// Fetcher gets information about an OCM component Version based on a k8s component Version.
-type Fetcher interface {
-	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error)
-	GetLatestSourceComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription) (string, error)
-	TransferComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error
-}
-
-// FetchVerifier can fetch and verify components.
-type FetchVerifier interface {
-	Verifier
-	Fetcher
+// Contract defines a subset of capabilities from the OCM library.
+type Contract interface {
+	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error)
+	VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error)
+	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error)
+	GetLatestSourceComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription) (string, error)
+	TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error
 }
 
 // Client implements the OCM fetcher interface.
@@ -53,7 +44,7 @@ type Client struct {
 	client client.Client
 }
 
-var _ FetchVerifier = &Client{}
+var _ Contract = &Client{}
 
 // NewClient creates a new fetcher Client using the provided k8s client.
 func NewClient(client client.Client) *Client {
@@ -62,22 +53,32 @@ func NewClient(client client.Client) *Client {
 	}
 }
 
-// GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
-func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
-	octx := ocm.ForContext(ctx)
+func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error) {
+	octx := ocm.New()
 
 	if err := c.maybeConfigureServiceAccountAccess(ctx, octx, obj); err != nil {
 		return nil, fmt.Errorf("failed to configure service account access: %w", err)
 	}
 
 	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
-		return nil, fmt.Errorf("failed to configure credentials for destination: %w", err)
+		return nil, fmt.Errorf("failed to configure credentials for source: %w", err)
 	}
 
+	if obj.Spec.Destination != nil {
+		if err := c.maybeConfigureAccessCredentials(ctx, octx, *obj.Spec.Destination, obj.Namespace); err != nil {
+			return nil, fmt.Errorf("failed to configure credentials for destination: %w", err)
+		}
+	}
+
+	return octx, nil
+}
+
+// GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
+func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
-		panic(err)
+		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
 	}
 	defer repo.Close()
 
@@ -89,23 +90,13 @@ func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.Componen
 	return cv, nil
 }
 
-func (c *Client) VerifySourceComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
+func (c *Client) VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
 	log := log.FromContext(ctx)
-
-	octx := ocm.ForContext(ctx)
-
-	if err := c.maybeConfigureServiceAccountAccess(ctx, octx, obj); err != nil {
-		return false, fmt.Errorf("failed to configure service account access: %w", err)
-	}
-
-	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
-		return false, fmt.Errorf("failed to configure credentials for destination: %w", err)
-	}
 
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
-		panic(err)
+		return false, fmt.Errorf("failed to get repository for spec: %w", err)
 	}
 	defer repo.Close()
 
@@ -180,18 +171,8 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 	return nil, errors.New("public key not found")
 }
 
-func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription) (string, error) {
+func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription) (string, error) {
 	log := log.FromContext(ctx)
-
-	octx := ocm.ForContext(ctx)
-
-	if err := c.maybeConfigureServiceAccountAccess(ctx, octx, obj); err != nil {
-		return "", fmt.Errorf("failed to configure service account access: %w", err)
-	}
-
-	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
-		return "", fmt.Errorf("failed to configure credentials for destination: %w", err)
-	}
 
 	versions, err := c.listComponentVersions(log, octx, obj)
 	if err != nil {
@@ -262,17 +243,7 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 	return result, nil
 }
 
-func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
-	octx := ocm.ForContext(ctx)
-
-	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
-		return fmt.Errorf("failed to configure credentials for source: %w", err)
-	}
-
-	if err := c.maybeConfigureAccessCredentials(ctx, octx, *obj.Spec.Destination, obj.Namespace); err != nil {
-		return fmt.Errorf("failed to configure credentials for destination: %w", err)
-	}
-
+func (c *Client) TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
 	sourceRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
 	source, err := octx.RepositoryForSpec(sourceRepoSpec)
 	if err != nil {
@@ -280,7 +251,7 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	}
 	defer source.Close()
 
-	ok, err := c.VerifySourceComponent(ctx, obj, version)
+	ok, err := c.VerifySourceComponent(ctx, octx, obj, version)
 	if err != nil {
 		return fmt.Errorf("failed to verify signature: %w", err)
 	}
@@ -306,6 +277,7 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	if err != nil {
 		return fmt.Errorf("failed to construct target handler: %w", err)
 	}
+
 	if err := transfer.TransferVersion(
 		nil,
 		transfer.TransportClosure{},

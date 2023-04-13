@@ -31,6 +31,7 @@ spec:
         - /manager
         args:
         - --leader-elect
+        - --zap-log-level=4
         image: open-component-model/replication-controller
         name: manager
         securityContext:
