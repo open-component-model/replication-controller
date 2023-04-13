@@ -12,12 +12,12 @@ import (
 
 	"github.com/Masterminds/semver"
 	"github.com/go-logr/logr"
-	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
@@ -29,6 +29,8 @@ import (
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
+
+const dockerConfigKey = ".dockerconfigjson"
 
 // Contract defines a subset of capabilities from the OCM library.
 type Contract interface {
@@ -341,7 +343,7 @@ func (c *Client) maybeConfigureServiceAccountAccess(ctx context.Context, octx oc
 			return fmt.Errorf("failed to get image pull secret: %w", err)
 		}
 
-		data, ok := secret.Data[".dockerconfigjson"]
+		data, ok := secret.Data[dockerConfigKey]
 		if !ok {
 			return fmt.Errorf("failed to find .dockerconfigjson in secret %s", secret.Name)
 		}
