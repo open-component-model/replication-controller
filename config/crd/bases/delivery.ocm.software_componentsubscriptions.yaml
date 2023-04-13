@@ -65,6 +65,12 @@ spec:
                 type: string
               semver:
                 type: string
+              serviceAccountName:
+                description: ServiceAccountName can be used to configure access to
+                  both destination and source repositories. If service account is
+                  defined, it's usually redundant to define access to either source
+                  or destination, but it is still allowed to do so. https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account
+                type: string
               source:
                 description: OCMRepository defines details for a repository, such
                   as access keys and the url.

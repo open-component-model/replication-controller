@@ -17,7 +17,6 @@ import (
 	dcontext "github.com/distribution/distribution/v3/context"
 	"github.com/distribution/distribution/v3/registry/handlers"
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/filesystem"
-	"github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/phayes/freeport"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -35,6 +34,8 @@ import (
 	"github.com/open-component-model/ocm/pkg/mime"
 	ocmsigning "github.com/open-component-model/ocm/pkg/signing"
 	"github.com/open-component-model/ocm/pkg/signing/handlers/rsa"
+
+	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
 
 const (
@@ -186,13 +187,13 @@ func New(ctx context.Context, addr string) (*Server, error) {
 	app := handlers.NewApp(ctx, config)
 	logger := dcontext.GetLogger(app)
 	return &Server{
-		http.Server{
+		Server: http.Server{
 			Addr:              addr,
 			Handler:           app,
 			ReadHeaderTimeout: 1 * time.Second,
 		},
-		logger,
-		config,
+		logger: logger,
+		config: config,
 	}, nil
 }
 
@@ -200,8 +201,7 @@ func getConfig(addr string) (*configuration.Configuration, error) {
 	config := &configuration.Configuration{}
 	config.HTTP.Addr = addr
 	config.HTTP.DrainTimeout = time.Duration(10) * time.Second
-	config.Storage = map[string]configuration.Parameters{"inmemory": map[string]interface{}{}}
-	config.HTTP.DrainTimeout = time.Duration(10) * time.Second
+	config.Storage = map[string]configuration.Parameters{"inmemory": map[string]any{}}
 	return config, nil
 }
 

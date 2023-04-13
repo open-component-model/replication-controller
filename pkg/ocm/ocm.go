@@ -13,13 +13,14 @@ import (
 	"github.com/Masterminds/semver"
 	"github.com/go-logr/logr"
 	corev1 "k8s.io/api/core/v1"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 
+	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	ocmreg "github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/standard"
@@ -29,22 +30,15 @@ import (
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
 
-// Verifier takes a Component and runs OCM verification on it.
-type Verifier interface {
-	VerifySourceComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error)
-}
+const dockerConfigKey = ".dockerconfigjson"
 
-// Fetcher gets information about an OCM component Version based on a k8s component Version.
-type Fetcher interface {
-	GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error)
-	GetLatestSourceComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription) (string, error)
-	TransferComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error
-}
-
-// FetchVerifier can fetch and verify components.
-type FetchVerifier interface {
-	Verifier
-	Fetcher
+// Contract defines a subset of capabilities from the OCM library.
+type Contract interface {
+	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error)
+	VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error)
+	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error)
+	GetLatestSourceComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription) (string, error)
+	TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error
 }
 
 // Client implements the OCM fetcher interface.
@@ -52,7 +46,7 @@ type Client struct {
 	client client.Client
 }
 
-var _ FetchVerifier = &Client{}
+var _ Contract = &Client{}
 
 // NewClient creates a new fetcher Client using the provided k8s client.
 func NewClient(client client.Client) *Client {
@@ -61,22 +55,32 @@ func NewClient(client client.Client) *Client {
 	}
 }
 
-// GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
-func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
-	log := log.FromContext(ctx)
+func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error) {
+	octx := ocm.New()
 
-	octx := ocm.ForContext(ctx)
-	// configure registry credentials
-	if obj.Spec.Source.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return nil, fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
+	if obj.Spec.ServiceAccountName != "" {
+		if err := c.configureServiceAccountAccess(ctx, octx, obj.Spec.ServiceAccountName, obj.Namespace); err != nil {
+			return nil, fmt.Errorf("failed to configure service account access: %w", err)
 		}
 	}
-	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
+
+	if err := c.configureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
+		return nil, fmt.Errorf("failed to configure credentials for source: %w", err)
+	}
+
+	if obj.Spec.Destination != nil {
+		if err := c.configureAccessCredentials(ctx, octx, *obj.Spec.Destination, obj.Namespace); err != nil {
+			return nil, fmt.Errorf("failed to configure credentials for destination: %w", err)
+		}
+	}
+
+	return octx, nil
+}
+
+// GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
+func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
+	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
+	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
 	}
@@ -90,23 +94,11 @@ func (c *Client) GetComponentVersion(ctx context.Context, obj *v1alpha1.Componen
 	return cv, nil
 }
 
-func (c *Client) VerifySourceComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
+func (c *Client) VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
 	log := log.FromContext(ctx)
 
-	octx := ocm.ForContext(ctx)
-
-	// configure registry credentials
-	if obj.Spec.Source.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return false, fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
-	}
-
-	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
+	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
+	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
 		return false, fmt.Errorf("failed to get repository for spec: %w", err)
 	}
@@ -183,21 +175,8 @@ func (c *Client) getPublicKey(ctx context.Context, namespace, name, signature st
 	return nil, errors.New("public key not found")
 }
 
-func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, obj *v1alpha1.ComponentSubscription) (string, error) {
+func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription) (string, error) {
 	log := log.FromContext(ctx)
-
-	octx := ocm.ForContext(ctx)
-
-	// configure registry credentials
-	if obj.Spec.Source.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return "", fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
-	}
 
 	versions, err := c.listComponentVersions(log, octx, obj)
 	if err != nil {
@@ -234,7 +213,8 @@ type Version struct {
 }
 
 func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentSubscription) ([]Version, error) {
-	repo, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
+	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
+	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
 	}
@@ -267,40 +247,15 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 	return result, nil
 }
 
-func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
-	log := log.FromContext(ctx)
-	octx := ocm.ForContext(ctx)
-
-	// configure registry credentials
-	if obj.Spec.Source.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Source.URL, obj.Spec.Source.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find source credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
-	}
-
-	// We don't need to check for Destination being nil, the trans flow is skipped in that case completely.
-	if obj.Spec.Destination.SecretRef != nil {
-		if err := csdk.ConfigureCredentials(ctx, octx, c.client, obj.Spec.Destination.URL, obj.Spec.Destination.SecretRef.Name, obj.Namespace); err != nil {
-			log.V(4).Error(err, "failed to find destination credentials")
-			// ignore not found errors for now
-			if !apierrors.IsNotFound(err) {
-				return fmt.Errorf("failed to configure credentials for component: %w", err)
-			}
-		}
-	}
-
-	log.V(4).Info("credentials configured")
-
-	source, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Source.URL, nil))
+func (c *Client) TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
+	sourceRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
+	source, err := octx.RepositoryForSpec(sourceRepoSpec)
 	if err != nil {
 		return fmt.Errorf("failed to get source repo: %w", err)
 	}
+	defer source.Close()
 
-	ok, err := c.VerifySourceComponent(ctx, obj, version)
+	ok, err := c.VerifySourceComponent(ctx, octx, obj, version)
 	if err != nil {
 		return fmt.Errorf("failed to verify signature: %w", err)
 	}
@@ -308,10 +263,12 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 		return fmt.Errorf("on of the signatures failed to match: %w", err)
 	}
 
-	target, err := octx.RepositoryForSpec(ocmreg.NewRepositorySpec(obj.Spec.Destination.URL, nil))
+	targetRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Destination.URL, nil)
+	target, err := octx.RepositoryForSpec(targetRepoSpec)
 	if err != nil {
 		return fmt.Errorf("failed to get target repo: %w", err)
 	}
+	defer target.Close()
 
 	handler, err := standard.New(
 		standard.Recursive(true),
@@ -324,6 +281,7 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 	if err != nil {
 		return fmt.Errorf("failed to construct target handler: %w", err)
 	}
+
 	if err := transfer.TransferVersion(
 		nil,
 		transfer.TransportClosure{},
@@ -332,6 +290,66 @@ func (c *Client) TransferComponent(ctx context.Context, obj *v1alpha1.ComponentS
 		handler,
 	); err != nil {
 		return fmt.Errorf("failed to transfer version to destination repository: %w", err)
+	}
+
+	return nil
+}
+
+// configureAccessCredentials configures access credentials if needed for a source/destination repository.
+func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Context, repository v1alpha1.OCMRepository, namespace string) error {
+	// If there are no credentials, this call is a no-op.
+	if repository.SecretRef == nil {
+		return nil
+	}
+
+	logger := log.FromContext(ctx)
+
+	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, repository.SecretRef.Name, namespace); err != nil {
+		logger.V(4).Error(err, "failed to find destination credentials")
+
+		// we don't ignore not found errors
+		return fmt.Errorf("failed to configure credentials for component: %w", err)
+	}
+
+	logger.V(4).Info("credentials configured")
+
+	return nil
+}
+
+func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Context, serviceAccountName, namespace string) error {
+	logger := log.FromContext(ctx)
+
+	logger.V(4).Info("configuring service account credentials")
+	account := &corev1.ServiceAccount{}
+	if err := c.client.Get(ctx, types.NamespacedName{
+		Name:      serviceAccountName,
+		Namespace: namespace,
+	}, account); err != nil {
+		return fmt.Errorf("failed to fetch service account: %w", err)
+	}
+
+	logger.V(4).Info("got service account", "name", account.GetName())
+
+	for _, imagePullSecret := range account.ImagePullSecrets {
+		secret := &corev1.Secret{}
+
+		if err := c.client.Get(ctx, types.NamespacedName{
+			Name:      imagePullSecret.Name,
+			Namespace: namespace,
+		}, secret); err != nil {
+			return fmt.Errorf("failed to get image pull secret: %w", err)
+		}
+
+		data, ok := secret.Data[dockerConfigKey]
+		if !ok {
+			return fmt.Errorf("failed to find .dockerconfigjson in secret %s", secret.Name)
+		}
+
+		repository := dockerconfig.NewRepositorySpecForConfig(data, true)
+
+		if _, err := octx.CredentialsContext().RepositoryForSpec(repository); err != nil {
+			return fmt.Errorf("failed to configure credentials for repository: %w", err)
+		}
 	}
 
 	return nil

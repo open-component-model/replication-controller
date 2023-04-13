@@ -22,6 +22,14 @@ type ComponentSubscriptionSpec struct {
 	Source      OCMRepository  `json:"source"`
 	Destination *OCMRepository `json:"destination,omitempty"`
 	Component   string         `json:"component"`
+
+	// ServiceAccountName can be used to configure access to both destination and source repositories.
+	// If service account is defined, it's usually redundant to define access to either source or destination, but
+	// it is still allowed to do so.
+	// https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account
+	// +optional
+	ServiceAccountName string `json:"serviceAccountName,omitempty"`
+
 	//+optional
 	Semver string      `json:"semver,omitempty"`
 	Verify []Signature `json:"verify,omitempty"`

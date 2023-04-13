@@ -4,13 +4,12 @@ metadata:
   name: podify-subscription
   namespace: ocm-system
 spec:
+  serviceAccountName: service-account-for-destination
   source:
     secretRef:
       name: creds
     url: ghcr.io/phoban01/ocm-podify
   destination:
-    secretRef:
-      name: creds
     url: ghcr.io/skarlso/hidden/ocm-podify
   component: "github.com/weaveworks/podify"
   interval: 10s
