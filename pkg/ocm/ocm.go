@@ -58,16 +58,18 @@ func NewClient(client client.Client) *Client {
 func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error) {
 	octx := ocm.New()
 
-	if err := c.maybeConfigureServiceAccountAccess(ctx, octx, obj); err != nil {
-		return nil, fmt.Errorf("failed to configure service account access: %w", err)
+	if obj.Spec.ServiceAccountName != "" {
+		if err := c.configureServiceAccountAccess(ctx, octx, obj.Spec.ServiceAccountName, obj.Namespace); err != nil {
+			return nil, fmt.Errorf("failed to configure service account access: %w", err)
+		}
 	}
 
-	if err := c.maybeConfigureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
+	if err := c.configureAccessCredentials(ctx, octx, obj.Spec.Source, obj.Namespace); err != nil {
 		return nil, fmt.Errorf("failed to configure credentials for source: %w", err)
 	}
 
 	if obj.Spec.Destination != nil {
-		if err := c.maybeConfigureAccessCredentials(ctx, octx, *obj.Spec.Destination, obj.Namespace); err != nil {
+		if err := c.configureAccessCredentials(ctx, octx, *obj.Spec.Destination, obj.Namespace); err != nil {
 			return nil, fmt.Errorf("failed to configure credentials for destination: %w", err)
 		}
 	}
@@ -293,8 +295,8 @@ func (c *Client) TransferComponent(ctx context.Context, octx ocm.Context, obj *v
 	return nil
 }
 
-// maybeConfigureAccessCredentials configures access credentials if needed for a source/destination repository.
-func (c *Client) maybeConfigureAccessCredentials(ctx context.Context, ocmCtx ocm.Context, repository v1alpha1.OCMRepository, namespace string) error {
+// configureAccessCredentials configures access credentials if needed for a source/destination repository.
+func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Context, repository v1alpha1.OCMRepository, namespace string) error {
 	// If there are no credentials, this call is a no-op.
 	if repository.SecretRef == nil {
 		return nil
@@ -314,19 +316,14 @@ func (c *Client) maybeConfigureAccessCredentials(ctx context.Context, ocmCtx ocm
 	return nil
 }
 
-func (c *Client) maybeConfigureServiceAccountAccess(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription) error {
+func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Context, serviceAccountName, namespace string) error {
 	logger := log.FromContext(ctx)
 
 	logger.V(4).Info("configuring service account credentials")
-
-	if obj.Spec.ServiceAccountName == "" {
-		return nil
-	}
-
 	account := &corev1.ServiceAccount{}
 	if err := c.client.Get(ctx, types.NamespacedName{
-		Name:      obj.Spec.ServiceAccountName,
-		Namespace: obj.Namespace,
+		Name:      serviceAccountName,
+		Namespace: namespace,
 	}, account); err != nil {
 		return fmt.Errorf("failed to fetch service account: %w", err)
 	}
@@ -338,7 +335,7 @@ func (c *Client) maybeConfigureServiceAccountAccess(ctx context.Context, octx oc
 
 		if err := c.client.Get(ctx, types.NamespacedName{
 			Name:      imagePullSecret.Name,
-			Namespace: obj.Namespace,
+			Namespace: namespace,
 		}, secret); err != nil {
 			return fmt.Errorf("failed to get image pull secret: %w", err)
 		}
