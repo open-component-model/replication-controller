@@ -110,6 +110,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				cv := DefaultComponentSubscription.DeepCopy()
 				cv.Status.LatestVersion = "v0.0.1"
 				cv.Status.ReplicatedVersion = "v0.0.1"
+				cv.Status.ReplicatedRepositoryURL = "https://destination.com"
 				return cv
 			},
 			setupMock: func(fakeOcm *fakes.MockFetcher) {
@@ -209,6 +210,11 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, cv.Status.LatestVersion, "v0.0.1")
 				assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
+				if cv.Spec.Destination != nil {
+					assert.Equal(t, cv.Spec.Destination.URL, cv.Status.ReplicatedRepositoryURL)
+				} else {
+					assert.Equal(t, cv.Spec.Source.URL, cv.Status.ReplicatedRepositoryURL)
+				}
 			} else {
 				assert.EqualError(t, err, tt.err)
 			}

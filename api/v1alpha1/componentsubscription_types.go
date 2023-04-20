@@ -61,15 +61,21 @@ type OCMRepository struct {
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription
 type ComponentSubscriptionStatus struct {
-	// LatestVersion defines the version that was last reconciled successfully.
+	// LatestVersion defines the latest version encountered while checking component versions.
+	// This might be different from Replicated version which should be the latest applied/replicated version.
+	// The difference might be caused because of semver constraint or failures during replication.
 	LatestVersion string `json:"latestVersion"`
 
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
+	// ReplicatedVersion defines the final version that has been applied to the destination component version.
 	//+optional
 	ReplicatedVersion string `json:"replicatedVersion,omitempty"`
+
+	// ReplicatedRepositoryURL defines the final location of the reconciled Component.
+	ReplicatedRepositoryURL string `json:"replicatedRepositoryURL"`
 
 	// +optional
 	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
@@ -91,6 +97,29 @@ func (in *ComponentSubscription) SetConditions(conditions []metav1.Condition) {
 // reconciled again.
 func (in ComponentSubscription) GetRequeueAfter() time.Duration {
 	return in.Spec.Interval.Duration
+}
+
+// Registry defines information about the location of a component.
+type Registry struct {
+	URL string `json:"url"`
+}
+
+// Component gathers together reconciled information about a component.
+type Component struct {
+	Name     string   `json:"name"`
+	Version  string   `json:"version"`
+	Registry Registry `json:"registry"`
+}
+
+// GetComponentVersion returns a constructed component version with name, version and reconciled location.
+func (in ComponentSubscription) GetComponentVersion() Component {
+	return Component{
+		Name:    in.Spec.Component,
+		Version: in.Status.ReplicatedVersion,
+		Registry: Registry{
+			URL: in.Status.ReplicatedRepositoryURL,
+		},
+	}
 }
 
 //+kubebuilder:object:root=true

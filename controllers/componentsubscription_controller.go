@@ -198,8 +198,12 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 			logger.Error(err, "transferring components failed")
 			return ctrl.Result{}, fmt.Errorf("failed to transfer components: %w", err)
 		}
+
+		obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
 	} else {
 		logger.Info("skipping transferring as no destination is provided for source component", "component-name", sourceComponentVersion.GetName())
+
+		obj.Status.ReplicatedRepositoryURL = obj.Spec.Source.URL
 	}
 
 	// Update the replicated version to the latest version
