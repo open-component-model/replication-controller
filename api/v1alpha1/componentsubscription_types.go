@@ -61,18 +61,18 @@ type OCMRepository struct {
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription
 type ComponentSubscriptionStatus struct {
-	// LatestVersion defines the latest version encountered while checking component versions.
-	// This might be different from Replicated version which should be the latest applied/replicated version.
+	// LastAttemptedVersion defines the latest version encountered while checking component versions.
+	// This might be different from last applied version which should be the latest applied/replicated version.
 	// The difference might be caused because of semver constraint or failures during replication.
-	LatestVersion string `json:"latestVersion"`
+	LastAttemptedVersion string `json:"lastAttemptedVersion"`
 
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
-	// ReplicatedVersion defines the final version that has been applied to the destination component version.
+	// LastAppliedVersion defines the final version that has been applied to the destination component version.
 	//+optional
-	ReplicatedVersion string `json:"replicatedVersion,omitempty"`
+	LastAppliedVersion string `json:"lastAppliedVersion,omitempty"`
 
 	// ReplicatedRepositoryURL defines the final location of the reconciled Component.
 	ReplicatedRepositoryURL string `json:"replicatedRepositoryURL"`
@@ -115,7 +115,7 @@ type Component struct {
 func (in ComponentSubscription) GetComponentVersion() Component {
 	return Component{
 		Name:    in.Spec.Component,
-		Version: in.Status.ReplicatedVersion,
+		Version: in.Status.LastAppliedVersion,
 		Registry: Registry{
 			URL: in.Status.ReplicatedRepositoryURL,
 		},

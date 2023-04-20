@@ -31,7 +31,7 @@ func (SubscriptionUpdatedPredicate) Update(e event.UpdateEvent) bool {
 		return false
 	}
 
-	if oldJob.Status.LatestVersion != newJob.Status.ReplicatedVersion {
+	if oldJob.Status.LastAttemptedVersion != newJob.Status.LastAppliedVersion {
 		return true
 	}
 

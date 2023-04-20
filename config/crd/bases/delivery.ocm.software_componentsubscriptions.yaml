@@ -196,10 +196,14 @@ spec:
                   - type
                   type: object
                 type: array
-              latestVersion:
-                description: LatestVersion defines the latest version encountered
+              lastAppliedVersion:
+                description: LastAppliedVersion defines the final version that has
+                  been applied to the destination component version.
+                type: string
+              lastAttemptedVersion:
+                description: LastAttemptedVersion defines the latest version encountered
                   while checking component versions. This might be different from
-                  Replicated version which should be the latest applied/replicated
+                  last applied version which should be the latest applied/replicated
                   version. The difference might be caused because of semver constraint
                   or failures during replication.
                 type: string
@@ -211,12 +215,8 @@ spec:
                 description: ReplicatedRepositoryURL defines the final location of
                   the reconciled Component.
                 type: string
-              replicatedVersion:
-                description: ReplicatedVersion defines the final version that has
-                  been applied to the destination component version.
-                type: string
             required:
-            - latestVersion
+            - lastAttemptedVersion
             - replicatedRepositoryURL
             type: object
         type: object
