@@ -66,7 +66,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				args := fetcher.TransferComponentCallingArgumentsOnCall(0)
 				obj, version := args[0], args[2]
 				cv := obj.(*v1alpha1.ComponentSubscription)
-				return cv.Status.LatestVersion == "v0.0.1" && version.(string) == "v0.0.1"
+				return cv.Status.LastAttemptedVersion == "v0.0.1" && version.(string) == "v0.0.1"
 			},
 		},
 		{
@@ -108,8 +108,9 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			name: "reconciling doesn't happen if version was already reconciled",
 			subscription: func() *v1alpha1.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()
-				cv.Status.LatestVersion = "v0.0.1"
-				cv.Status.ReplicatedVersion = "v0.0.1"
+				cv.Status.LastAttemptedVersion = "v0.0.1"
+				cv.Status.LastAppliedVersion = "v0.0.1"
+				cv.Status.ReplicatedRepositoryURL = "https://destination.com"
 				return cv
 			},
 			setupMock: func(fakeOcm *fakes.MockFetcher) {
@@ -176,7 +177,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				args := fetcher.TransferComponentCallingArgumentsOnCall(0)
 				obj, version := args[0], args[2]
 				cv := obj.(*v1alpha1.ComponentSubscription)
-				return cv.Status.LatestVersion == "v0.0.1" && version.(string) == "v0.0.1"
+				return cv.Status.LastAttemptedVersion == "v0.0.1" && version.(string) == "v0.0.1"
 			},
 		},
 	}
@@ -207,8 +208,13 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 					Namespace: cv.Namespace,
 				}, cv)
 				require.NoError(t, err)
-				assert.Equal(t, cv.Status.LatestVersion, "v0.0.1")
+				assert.Equal(t, cv.Status.LastAttemptedVersion, "v0.0.1")
 				assert.True(t, conditions.IsTrue(cv, meta.ReadyCondition))
+				if cv.Spec.Destination != nil {
+					assert.Equal(t, cv.Spec.Destination.URL, cv.Status.ReplicatedRepositoryURL)
+				} else {
+					assert.Equal(t, cv.Spec.Source.URL, cv.Status.ReplicatedRepositoryURL)
+				}
 			} else {
 				assert.EqualError(t, err, tt.err)
 			}

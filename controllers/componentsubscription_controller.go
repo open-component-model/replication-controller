@@ -146,7 +146,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	logger.V(4).Info("got newest version from component", "version", version)
 
 	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
-	if version == obj.Status.ReplicatedVersion {
+	if version == obj.Status.LastAppliedVersion {
 		logger.Info("latest version and replicated version are a match and not empty")
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
@@ -157,8 +157,8 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	}
 
 	subReplicated := "0.0.0"
-	if obj.Status.ReplicatedVersion != "" {
-		subReplicated = obj.Status.ReplicatedVersion
+	if obj.Status.LastAppliedVersion != "" {
+		subReplicated = obj.Status.LastAppliedVersion
 	}
 
 	replicatedVersion, err := semver.NewVersion(subReplicated)
@@ -175,8 +175,8 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	}
 
 	// set latest version, this will be patched in the defer statement.
-	obj.Status.LatestVersion = latestSourceComponentVersion.Original()
-	obj.Status.ReplicatedVersion = replicatedVersion.Original()
+	obj.Status.LastAttemptedVersion = latestSourceComponentVersion.Original()
+	obj.Status.LastAppliedVersion = replicatedVersion.Original()
 
 	sourceComponentVersion, err := r.OCMClient.GetComponentVersion(ctx, octx, obj, latestSourceComponentVersion.Original())
 	if err != nil {
@@ -198,12 +198,16 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 			logger.Error(err, "transferring components failed")
 			return ctrl.Result{}, fmt.Errorf("failed to transfer components: %w", err)
 		}
+
+		obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
 	} else {
 		logger.Info("skipping transferring as no destination is provided for source component", "component-name", sourceComponentVersion.GetName())
+
+		obj.Status.ReplicatedRepositoryURL = obj.Spec.Source.URL
 	}
 
 	// Update the replicated version to the latest version
-	obj.Status.ReplicatedVersion = latestSourceComponentVersion.Original()
+	obj.Status.LastAppliedVersion = latestSourceComponentVersion.Original()
 
 	// Remove any stale Ready condition, most likely False, set above. Its value
 	// is derived from the overall result of the reconciliation in the deferred

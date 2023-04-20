@@ -196,18 +196,28 @@ spec:
                   - type
                   type: object
                 type: array
-              latestVersion:
-                description: LatestVersion defines the version that was last reconciled
-                  successfully.
+              lastAppliedVersion:
+                description: LastAppliedVersion defines the final version that has
+                  been applied to the destination component version.
+                type: string
+              lastAttemptedVersion:
+                description: LastAttemptedVersion defines the latest version encountered
+                  while checking component versions. This might be different from
+                  last applied version which should be the latest applied/replicated
+                  version. The difference might be caused because of semver constraint
+                  or failures during replication.
                 type: string
               observedGeneration:
                 description: ObservedGeneration is the last reconciled generation.
                 format: int64
                 type: integer
-              replicatedVersion:
+              replicatedRepositoryURL:
+                description: ReplicatedRepositoryURL defines the final location of
+                  the reconciled Component.
                 type: string
             required:
-            - latestVersion
+            - lastAttemptedVersion
+            - replicatedRepositoryURL
             type: object
         type: object
     served: true
