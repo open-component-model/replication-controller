@@ -44,37 +44,33 @@ type ComponentSubscriptionReconciler struct {
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	var (
-		result ctrl.Result
-		retErr error
-	)
-
+func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctrl.Request) (result ctrl.Result, err error) {
 	logger := log.FromContext(ctx)
 	obj := &v1alpha1.ComponentSubscription{}
-	if err := r.Get(ctx, req.NamespacedName, obj); err != nil {
+	if err = r.Get(ctx, req.NamespacedName, obj); err != nil {
 		if apierrors.IsNotFound(err) {
-			logger.Info("component deleted")
 			return ctrl.Result{}, nil
 		}
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, err
+
+		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 	}
 
 	logger = logger.WithValues("subscription", klog.KObj(obj))
-	logger.Info("starting reconcile loop")
+	logger.V(4).Info("starting reconcile loop")
 
 	if obj.DeletionTimestamp != nil {
 		logger.Info("subscription is being deleted...")
-		return ctrl.Result{}, nil
+
+		return
 	}
 
 	// The replication controller doesn't need a shouldReconcile, because it should always reconcile,
 	// that is its purpose.
-	patchHelper, err := patch.NewHelper(obj, r.Client)
+	var patchHelper *patch.Helper
+	patchHelper, err = patch.NewHelper(obj, r.Client)
 	if err != nil {
-		retErr = errors.Join(retErr, err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.PatchFailedReason, err.Error())
-		return ctrl.Result{}, retErr
+		return
 	}
 
 	// Always attempt to patch the object and status after each reconciliation.
@@ -90,13 +86,13 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 
 		// Check if it's a successful reconciliation.
 		// We don't set Requeue in case of error, so we can safely check for Requeue.
-		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && retErr == nil {
+		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && err == nil {
 			// Remove the reconciling condition if it's set.
 			conditions.Delete(obj, meta.ReconcilingCondition)
 
 			// Set the return err as the ready failure message if the resource is not ready, but also not reconciling or stalled.
 			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
-				retErr = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
+				err = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
 			}
 		}
 
@@ -111,23 +107,23 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		// If not reconciling or stalled than mark Ready=True
 		if !conditions.IsReconciling(obj) &&
 			!conditions.IsStalled(obj) &&
-			retErr == nil &&
+			err == nil &&
 			result.RequeueAfter == obj.GetRequeueAfter() {
+
 			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
 		}
+
 		// Set status observed generation option if the component is stalled or ready.
 		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
 			obj.Status.ObservedGeneration = obj.Generation
 		}
 
-		// Update the object.
-		if err := patchHelper.Patch(ctx, obj); err != nil {
-			retErr = errors.Join(retErr, err)
+		if perr := patchHelper.Patch(ctx, obj); perr != nil {
+			err = errors.Join(err, perr)
 		}
 	}()
 
-	result, retErr = r.reconcile(ctx, obj)
-	return result, retErr
+	return r.reconcile(ctx, obj)
 }
 
 func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ctrl.Result, error) {
@@ -147,7 +143,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
 	if version == obj.Status.LastAppliedVersion {
-		logger.Info("latest version and replicated version are a match and not empty")
+		logger.Info("latest version and last applied version are a match and not empty")
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
@@ -156,27 +152,26 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 		return ctrl.Result{}, fmt.Errorf("failed to parse version: %w", err)
 	}
 
-	subReplicated := "0.0.0"
+	lastAppliedOriginal := "0.0.0"
 	if obj.Status.LastAppliedVersion != "" {
-		subReplicated = obj.Status.LastAppliedVersion
+		lastAppliedOriginal = obj.Status.LastAppliedVersion
 	}
 
-	replicatedVersion, err := semver.NewVersion(subReplicated)
+	lastAppliedVersion, err := semver.NewVersion(lastAppliedOriginal)
 	if err != nil {
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SemverConversionFailedReason, err.Error())
 		return ctrl.Result{}, fmt.Errorf("failed to parse latest version: %w", err)
 	}
 
-	logger.V(4).Info("latest replicated version is", "replicated", replicatedVersion.Original())
+	logger.V(4).Info("latest applied version is", "version", lastAppliedVersion.Original())
 
-	if latestSourceComponentVersion.LessThan(replicatedVersion) || latestSourceComponentVersion.Equal(replicatedVersion) {
-		logger.Info("no new version found", "version", latestSourceComponentVersion.Original(), "latest", replicatedVersion.Original())
+	if latestSourceComponentVersion.LessThan(lastAppliedVersion) || latestSourceComponentVersion.Equal(lastAppliedVersion) {
+		logger.Info("no new version found", "version", latestSourceComponentVersion.Original(), "latest", lastAppliedVersion.Original())
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
 	// set latest version, this will be patched in the defer statement.
 	obj.Status.LastAttemptedVersion = latestSourceComponentVersion.Original()
-	obj.Status.LastAppliedVersion = replicatedVersion.Original()
 
 	sourceComponentVersion, err := r.OCMClient.GetComponentVersion(ctx, octx, obj, latestSourceComponentVersion.Original())
 	if err != nil {
@@ -222,6 +217,5 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 func (r *ComponentSubscriptionReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&v1alpha1.ComponentSubscription{}, builder.WithPredicates(predicate.GenerationChangedPredicate{})).
-		WithEventFilter(predicate.Or(SubscriptionUpdatedPredicate{})).
 		Complete(r)
 }

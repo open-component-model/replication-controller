@@ -64,7 +64,8 @@ type ComponentSubscriptionStatus struct {
 	// LastAttemptedVersion defines the latest version encountered while checking component versions.
 	// This might be different from last applied version which should be the latest applied/replicated version.
 	// The difference might be caused because of semver constraint or failures during replication.
-	LastAttemptedVersion string `json:"lastAttemptedVersion"`
+	//+optional
+	LastAttemptedVersion string `json:"lastAttemptedVersion,omitempty"`
 
 	// ObservedGeneration is the last reconciled generation.
 	// +optional
@@ -75,7 +76,8 @@ type ComponentSubscriptionStatus struct {
 	LastAppliedVersion string `json:"lastAppliedVersion,omitempty"`
 
 	// ReplicatedRepositoryURL defines the final location of the reconciled Component.
-	ReplicatedRepositoryURL string `json:"replicatedRepositoryURL"`
+	//+optional
+	ReplicatedRepositoryURL string `json:"replicatedRepositoryURL,omitempty"`
 
 	// +optional
 	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
@@ -122,6 +124,7 @@ func (in ComponentSubscription) GetComponentVersion() Component {
 	}
 }
 
+//+kubebuilder:resource:shortName=coms
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
