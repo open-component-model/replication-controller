@@ -86,10 +86,16 @@ func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj 
 	}
 	defer repo.Close()
 
+	logger := log.FromContext(ctx)
+
+	logger.Info("fetching component version", "component", obj.Spec.Component, "version", version)
+
 	cv, err := repo.LookupComponentVersion(obj.Spec.Component, version)
 	if err != nil {
 		return nil, fmt.Errorf("failed to look up component Version: %w", err)
 	}
+
+	logger.Info("...done fetching")
 
 	return cv, nil
 }
