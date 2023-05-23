@@ -9,7 +9,7 @@ require (
 	github.com/fluxcd/pkg/apis/meta v0.19.0
 	github.com/fluxcd/pkg/runtime v0.27.0
 	github.com/go-logr/logr v1.2.3
-	github.com/open-component-model/ocm v0.3.0-rc.1.0.20230408161516-7bac90d616ab
+	github.com/open-component-model/ocm v0.3.0-rc.2
 	github.com/open-component-model/ocm-controllers-sdk v0.0.6
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	github.com/stretchr/testify v1.8.1
@@ -50,6 +50,7 @@ require (
 	github.com/containers/libtrust v0.0.0-20200511145503-9c3a6c22cd9a // indirect
 	github.com/containers/ocicrypt v1.1.6 // indirect
 	github.com/containers/storage v1.43.0 // indirect
+	github.com/cyberphone/json-canonicalization v0.0.0-20220623050100-57a0ce2678a7 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/docker/cli v20.10.21+incompatible // indirect
 	github.com/docker/distribution v2.8.1+incompatible // indirect
@@ -94,7 +95,7 @@ require (
 	github.com/klauspost/pgzip v1.2.5 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
-	github.com/mandelsoft/filepath v0.0.0-20220503095057-4432a2285b68 // indirect
+	github.com/mandelsoft/filepath v0.0.0-20230412200429-36b1eb66bd27 // indirect
 	github.com/mandelsoft/logging v0.0.0-20230331123830-36542ef18f6f // indirect
 	github.com/mandelsoft/spiff v1.7.0-beta-3 // indirect
 	github.com/mandelsoft/vfs v0.0.0-20220805210647-bf14a11bfe31 // indirect
