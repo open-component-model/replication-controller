@@ -9,7 +9,7 @@ The behaviour of the `replication-controller` is similar to that of the `ocm tra
 Install the latest version of the controller using the following command:
 
 ```bash
-VERSION=$(curl -sL https://api.github.com/repos/open-component-model/replication-controller/releases/latest | jq -r '.name'
+VERSION=$(curl -sL https://api.github.com/repos/open-component-model/replication-controller/releases/latest | jq -r '.name')
 
 kubectl apply -f https://github.com/open-component-model/replication-controller/releases/download/$VERSION/install.yaml
 ```
