@@ -220,7 +220,7 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 	require.NoError(t, err)
 
 	id := cpi.ConsumerIdentity{
-		identity.ID_TYPE:       identity.CONSUMER_TYPE,
+		cpi.ID_TYPE:            identity.CONSUMER_TYPE,
 		identity.ID_HOSTNAME:   "ghcr.io",
 		identity.ID_PATHPREFIX: "skarlso",
 	}

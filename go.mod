@@ -10,7 +10,7 @@ require (
 	github.com/fluxcd/pkg/runtime v0.27.0
 	github.com/go-logr/logr v1.2.3
 	github.com/open-component-model/ocm v0.3.0-rc.1.0.20230607081545-8d3b8aa59b92
-	github.com/open-component-model/ocm-controllers-sdk v0.0.6
+	github.com/open-component-model/ocm-controllers-sdk v0.1.0
 	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	github.com/stretchr/testify v1.8.1
 	k8s.io/api v0.26.1
