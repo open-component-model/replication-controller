@@ -8,11 +8,11 @@ metadata:
     app.kubernetes.io/created-by: replication-controller
     app.kubernetes.io/part-of: replication-controller
     app.kubernetes.io/managed-by: kustomize
-  name: leader-election-rolebinding
+  name: replication-leader-election-rolebinding
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
-  name: leader-election-role
+  name: replication-leader-election-role
 subjects:
 - kind: ServiceAccount
   name: replication-controller
