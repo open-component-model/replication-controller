@@ -185,6 +185,16 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 		}
 	}()
 
+	logger.Info("verifying source component...")
+
+	ok, err := r.OCMClient.VerifySourceComponent(ctx, octx, obj, version)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("failed to verify signature: %w", err)
+	}
+	if !ok {
+		return ctrl.Result{}, fmt.Errorf("on of the signatures failed to match: %w", err)
+	}
+
 	logger.V(4).Info("pulling", "component-name", sourceComponentVersion.GetName())
 
 	if obj.Spec.Destination != nil {

@@ -61,6 +61,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				}
 				fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
 				fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+				fakeOcm.VerifySourceComponentReturns(true, nil)
 			},
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				args := fetcher.TransferComponentCallingArgumentsOnCall(0)
@@ -99,6 +100,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				}
 				fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
 				fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+				fakeOcm.VerifySourceComponentReturns(true, nil)
 			},
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				return fetcher.TransferComponentWasNotCalled()
@@ -136,6 +138,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				}
 				fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
 				fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+				fakeOcm.VerifySourceComponentReturns(true, nil)
 			},
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				return fetcher.TransferComponentWasNotCalled()
@@ -172,6 +175,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
 				fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
 				fakeOcm.TransferComponentReturns(errors.New("nope"))
+				fakeOcm.VerifySourceComponentReturns(true, nil)
 			},
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				args := fetcher.TransferComponentCallingArgumentsOnCall(0)

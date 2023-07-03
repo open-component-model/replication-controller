@@ -8,10 +8,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 	"sort"
 
 	"github.com/Masterminds/semver"
 	"github.com/go-logr/logr"
+	"github.com/open-component-model/ocm/pkg/contexts/credentials"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/cpi"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/genericocireg"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -19,9 +23,9 @@ import (
 
 	csdk "github.com/open-component-model/ocm-controllers-sdk"
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/repositories/dockerconfig"
+	"github.com/open-component-model/ocm/pkg/contexts/oci/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/attrs/signingattr"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm/repositories/ocireg"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/standard"
@@ -43,15 +47,32 @@ type Contract interface {
 // Client implements the OCM fetcher interface.
 type Client struct {
 	client client.Client
+
+	disabledHttps bool
+}
+
+type ClientOptionsFunc func(c *Client)
+
+// WithDisabledHTTPS disables the https repository setting.
+func WithDisabledHTTPS() ClientOptionsFunc {
+	return func(c *Client) {
+		c.disabledHttps = true
+	}
 }
 
 var _ Contract = &Client{}
 
 // NewClient creates a new fetcher Client using the provided k8s client.
-func NewClient(client client.Client) *Client {
-	return &Client{
+func NewClient(client client.Client, opts ...ClientOptionsFunc) *Client {
+	c := &Client{
 		client: client,
 	}
+
+	for _, opt := range opts {
+		opt(c)
+	}
+
+	return c
 }
 
 func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error) {
@@ -78,16 +99,15 @@ func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
 func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
-	repo, err := octx.RepositoryForSpec(repoSpec)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
-	}
-	defer repo.Close()
-
 	logger := log.FromContext(ctx)
-
 	logger.Info("fetching component version", "component", obj.Spec.Component, "version", version)
+
+	repo, err := c.constructHTTPSRepositorySpec(octx, obj.Spec.Source.URL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct https repository spec: %w", err)
+	}
+
+	defer repo.Close()
 
 	cv, err := repo.LookupComponentVersion(obj.Spec.Component, version)
 	if err != nil {
@@ -102,11 +122,11 @@ func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj 
 func (c *Client) VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
 	log := log.FromContext(ctx)
 
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
-	repo, err := octx.RepositoryForSpec(repoSpec)
+	repo, err := c.constructHTTPSRepositorySpec(octx, obj.Spec.Source.URL)
 	if err != nil {
-		return false, fmt.Errorf("failed to get repository for spec: %w", err)
+		return false, fmt.Errorf("failed to construct https repository spec: %w", err)
 	}
+
 	defer repo.Close()
 
 	cv, err := repo.LookupComponentVersion(obj.Spec.Component, version)
@@ -218,11 +238,11 @@ type Version struct {
 }
 
 func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj *v1alpha1.ComponentSubscription) ([]Version, error) {
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
-	repo, err := octx.RepositoryForSpec(repoSpec)
+	repo, err := c.constructHTTPSRepositorySpec(octx, obj.Spec.Source.URL)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+		return nil, fmt.Errorf("failed to construct https repository spec: %w", err)
 	}
+
 	defer repo.Close()
 
 	// get the component Version
@@ -253,35 +273,24 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 }
 
 func (c *Client) TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
-	sourceRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
-	source, err := octx.RepositoryForSpec(sourceRepoSpec)
+	sourceRepoSpec, err := c.constructHTTPSRepositorySpec(octx, obj.Spec.Source.URL)
 	if err != nil {
-		return fmt.Errorf("failed to get source repo: %w", err)
+		return fmt.Errorf("failed to construct https repository spec: %w", err)
 	}
-	defer source.Close()
+	defer sourceRepoSpec.Close()
 
-	ok, err := c.VerifySourceComponent(ctx, octx, obj, version)
+	destinationRepoSpec, err := c.constructHTTPSRepositorySpec(octx, obj.Spec.Destination.URL)
 	if err != nil {
-		return fmt.Errorf("failed to verify signature: %w", err)
+		return fmt.Errorf("failed to construct https repository spec: %w", err)
 	}
-	if !ok {
-		return fmt.Errorf("on of the signatures failed to match: %w", err)
-	}
-
-	targetRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Destination.URL, nil)
-	target, err := octx.RepositoryForSpec(targetRepoSpec)
-	if err != nil {
-		return fmt.Errorf("failed to get target repo: %w", err)
-	}
-	defer target.Close()
+	defer destinationRepoSpec.Close()
 
 	handler, err := standard.New(
 		standard.Recursive(true),
 		standard.ResourcesByValue(true),
 		standard.Overwrite(true),
-		standard.Resolver(source),
-		standard.Resolver(target),
-		// if additional resolvers are required they could be added here...
+		standard.Resolver(sourceRepoSpec),
+		standard.Resolver(destinationRepoSpec),
 	)
 	if err != nil {
 		return fmt.Errorf("failed to construct target handler: %w", err)
@@ -291,7 +300,7 @@ func (c *Client) TransferComponent(ctx context.Context, octx ocm.Context, obj *v
 		nil,
 		transfer.TransportClosure{},
 		sourceComponentVersion,
-		target,
+		destinationRepoSpec,
 		handler,
 	); err != nil {
 		return fmt.Errorf("failed to transfer version to destination repository: %w", err)
@@ -358,4 +367,41 @@ func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Con
 	}
 
 	return nil
+}
+
+func (c *Client) constructHTTPSRepositorySpec(octx ocm.Context, repoURL string) (cpi.Repository, error) {
+	repoSpec := ocireg.NewRepositorySpec(repoURL)
+	creds, err := credentials.CredentialsChain(nil).Credentials(octx.CredentialsContext())
+	if err != nil {
+		return nil, fmt.Errorf("failed to construct credential chain: %w", err)
+	}
+
+	u, err := url.Parse(repoURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse repository url: %w", err)
+	}
+
+	scheme := "https"
+	if c.disabledHttps {
+		scheme = "http"
+	}
+
+	ociRepo, err := ocireg.NewRepository(octx.OCIContext(), repoSpec, &ocireg.RepositoryInfo{
+		Scheme:  scheme,
+		Locator: u.Host,
+		Creds:   creds,
+		Legacy:  false,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+	}
+
+	defer ociRepo.Close()
+
+	genericRepo, err := genericocireg.NewRepository(octx, genericocireg.DefaultComponentRepositoryMeta(nil), ociRepo)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get repository for spec: %w", err)
+	}
+
+	return genericRepo, nil
 }

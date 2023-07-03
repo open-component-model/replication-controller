@@ -146,7 +146,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 			cs := tt.subscription(component, &objs)
 			fakeKubeClient := env.FakeKubeClient(WithObjets(objs...))
 
-			ocmClient := NewClient(fakeKubeClient)
+			ocmClient := NewClient(fakeKubeClient, WithDisabledHTTPS())
 			err := env.AddComponentVersionToRepository(Component{
 				Name:    component,
 				Version: "v0.0.1",
@@ -207,7 +207,7 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 	}
 
 	fakeKubeClient := env.FakeKubeClient(WithObjets(cs, serviceAccount, testSecret))
-	ocmClient := NewClient(fakeKubeClient)
+	ocmClient := NewClient(fakeKubeClient, WithDisabledHTTPS())
 	component := "github.com/skarlso/ocm-demo-index"
 
 	err := env.AddComponentVersionToRepository(Component{
@@ -366,7 +366,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 	for _, tt := range testCases {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeKubeClient := env.FakeKubeClient()
-			ocmClient := NewClient(fakeKubeClient)
+			ocmClient := NewClient(fakeKubeClient, WithDisabledHTTPS())
 			component := "github.com/skarlso/ocm-demo-index"
 
 			err := tt.setupComponents(component)
@@ -397,7 +397,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 	fakeKubeClient := env.FakeKubeClient(WithObjets(secret))
-	ocmClient := NewClient(fakeKubeClient)
+	ocmClient := NewClient(fakeKubeClient, WithDisabledHTTPS())
 	component := "github.com/skarlso/ocm-demo-index"
 
 	err = env.AddComponentVersionToRepository(Component{
@@ -455,7 +455,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 		},
 	}
 	fakeKubeClient := env.FakeKubeClient(WithObjets(secret))
-	ocmClient := NewClient(fakeKubeClient)
+	ocmClient := NewClient(fakeKubeClient, WithDisabledHTTPS())
 	component := "github.com/skarlso/ocm-demo-index"
 
 	err = env.AddComponentVersionToRepository(Component{
