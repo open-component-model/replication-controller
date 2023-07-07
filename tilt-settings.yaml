@@ -1,0 +1,3 @@
+root_certificate_secret:
+  enable: true
+  name: "registry-certs"
