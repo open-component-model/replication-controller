@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -76,7 +75,7 @@ type OCMRepository struct {
 
 	// SecretRef specifies the credentials used to access the OCI registry.
 	// +optional
-	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription
