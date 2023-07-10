@@ -36,25 +36,31 @@ spec:
           metadata:
             type: object
           spec:
-            description: ComponentSubscriptionSpec defines the desired state of ComponentSubscription
+            description: ComponentSubscriptionSpec defines the desired state of ComponentSubscription.
+              It specifies the parameters that the replication controller will use
+              to replicate a desired Component from a source OCM repository to a destination
+              OCM repository.
             properties:
               component:
+                description: Component specifies the name of the Component that should
+                  be replicated.
                 type: string
               destination:
-                description: OCMRepository defines details for a repository, such
-                  as access keys and the url.
+                description: Destination holds the destination or target OCM Repository
+                  details. The ComponentVersion will be transfered into this repository.
                 properties:
                   secretRef:
-                    description: LocalObjectReference contains enough information
-                      to locate the referenced Kubernetes resource object.
+                    description: SecretRef specifies the credentials used to access
+                      the OCI registry.
                     properties:
                       name:
-                        description: Name of the referent.
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          TODO: Add other useful fields. apiVersion, kind, uid?'
                         type: string
-                    required:
-                    - name
                     type: object
+                    x-kubernetes-map-type: atomic
                   url:
+                    description: URL specifies the URL of the OCI registry.
                     type: string
                 required:
                 - url
@@ -66,6 +72,8 @@ spec:
                   reconciling objects.
                 type: string
               semver:
+                description: Semver specifies an optional semver constraint that is
+                  used to evaluate the component versions that should be replicated.
                 type: string
               serviceAccountName:
                 description: ServiceAccountName can be used to configure access to
@@ -74,34 +82,40 @@ spec:
                   or destination, but it is still allowed to do so. https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#add-imagepullsecrets-to-a-service-account
                 type: string
               source:
-                description: OCMRepository defines details for a repository, such
-                  as access keys and the url.
+                description: Source holds the OCM Repository details for the replication
+                  source.
                 properties:
                   secretRef:
-                    description: LocalObjectReference contains enough information
-                      to locate the referenced Kubernetes resource object.
+                    description: SecretRef specifies the credentials used to access
+                      the OCI registry.
                     properties:
                       name:
-                        description: Name of the referent.
+                        description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
+                          TODO: Add other useful fields. apiVersion, kind, uid?'
                         type: string
-                    required:
-                    - name
                     type: object
+                    x-kubernetes-map-type: atomic
                   url:
+                    description: URL specifies the URL of the OCI registry.
                     type: string
                 required:
                 - url
                 type: object
               verify:
+                description: Verify specifies a list signatures that should be validated
+                  before the ComponentVersion is marked Verified.
                 items:
                   description: Signature defines the details of a signature to use
                     for verification.
                   properties:
                     name:
-                      description: Name of the signature.
+                      description: Name specifies the name of the signature. An OCM
+                        component may have multiple signatures.
                       type: string
                     publicKey:
-                      description: Key which is used for verification.
+                      description: PublicKey provides a reference to a Kubernetes
+                        Secret that contains a public key which will be used to validate
+                        the named signature.
                       properties:
                         secretRef:
                           description: LocalObjectReference contains enough information
