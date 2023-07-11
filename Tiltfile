@@ -16,8 +16,8 @@ settings = {
     },
     "verification_keys": {},
     "root_certificate_secret": {
-        "enable": False,
-        "name": "registry-cert",
+        "enable": True,
+        "name": "registry-certs",
     },
 }
 
