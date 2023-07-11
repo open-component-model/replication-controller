@@ -1,6 +1,8 @@
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY replication-controller /manager
+COPY ./hack/entrypoint.sh /entrypoint.sh
 USER 65532:65532
 
-ENTRYPOINT ["/manager"]
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["/manager"]
