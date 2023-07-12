@@ -45,8 +45,8 @@ type ComponentSubscriptionSpec struct {
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
-	// Verify specifies a list signatures that should be validated before the ComponentVersion
-	// is marked Verified.
+	// Verify specifies a list signatures that must be verified before a ComponentVersion
+	// is replicated.
 	// +optional
 	Verify []Signature `json:"verify,omitempty"`
 }

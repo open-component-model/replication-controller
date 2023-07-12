@@ -102,8 +102,8 @@ spec:
                 - url
                 type: object
               verify:
-                description: Verify specifies a list signatures that should be validated
-                  before the ComponentVersion is marked Verified.
+                description: Verify specifies a list signatures that must be verified
+                  before a ComponentVersion is replicated.
                 items:
                   description: Signature defines the details of a signature to use
                     for verification.
