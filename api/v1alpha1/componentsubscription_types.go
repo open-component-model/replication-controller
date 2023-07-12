@@ -11,16 +11,32 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// ComponentSubscriptionSpec defines the desired state of ComponentSubscription
+// ComponentSubscriptionSpec defines the desired state of ComponentSubscription. It specifies
+// the parameters that the replication controller will use to replicate a desired Component from
+// a source OCM repository to a destination OCM repository.
 type ComponentSubscriptionSpec struct {
+	// Component specifies the name of the Component that should be replicated.
+	// +required
+	Component string `json:"component"`
+
+	// Semver specifies an optional semver constraint that is used to evaluate the component
+	// versions that should be replicated.
+	//+optional
+	Semver string `json:"semver,omitempty"`
+
+	// Source holds the OCM Repository details for the replication source.
+	// +required
+	Source OCMRepository `json:"source"`
+
+	// Destination holds the destination or target OCM Repository details. The ComponentVersion
+	// will be transfered into this repository.
+	// +optional
+	Destination *OCMRepository `json:"destination,omitempty"`
+
 	// Interval is the reconciliation interval, i.e. at what interval shall a reconciliation happen.
 	// This is used to requeue objects for reconciliation in case of success as well as already reconciling objects.
 	// +required
 	Interval metav1.Duration `json:"interval"`
-
-	Source      OCMRepository  `json:"source"`
-	Destination *OCMRepository `json:"destination,omitempty"`
-	Component   string         `json:"component"`
 
 	// ServiceAccountName can be used to configure access to both destination and source repositories.
 	// If service account is defined, it's usually redundant to define access to either source or destination, but
@@ -29,19 +45,20 @@ type ComponentSubscriptionSpec struct {
 	// +optional
 	ServiceAccountName string `json:"serviceAccountName,omitempty"`
 
-	//+optional
-	Semver string      `json:"semver,omitempty"`
+	// Verify specifies a list signatures that should be validated before the ComponentVersion
+	// is marked Verified.
+	// +optional
 	Verify []Signature `json:"verify,omitempty"`
 }
 
 // Signature defines the details of a signature to use for verification.
 type Signature struct {
-	// Name of the signature.
-	// +required
+	// Name specifies the name of the signature. An OCM component may have multiple
+	// signatures.
 	Name string `json:"name"`
 
-	// Key which is used for verification.
-	// +required
+	// PublicKey provides a reference to a Kubernetes Secret that contains a public key
+	// which will be used to validate the named signature.
 	PublicKey SecretRef `json:"publicKey"`
 }
 
@@ -50,11 +67,13 @@ type SecretRef struct {
 	SecretRef meta.LocalObjectReference `json:"secretRef"`
 }
 
-// OCMRepository defines details for a repository, such as access keys and the url.
+// OCMRepository specifies access details for an OCI based OCM Repository.
 type OCMRepository struct {
+	// URL specifies the URL of the OCI registry.
 	// +required
 	URL string `json:"url"`
 
+	// SecretRef specifies the credentials used to access the OCI registry.
 	// +optional
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
@@ -106,10 +125,15 @@ type Registry struct {
 	URL string `json:"url"`
 }
 
-// Component gathers together reconciled information about a component.
+// Component holds information about a reconciled component.
 type Component struct {
-	Name     string   `json:"name"`
-	Version  string   `json:"version"`
+	// Name specifies the component name.
+	Name string `json:"name"`
+
+	// Version specifies the component version.
+	Version string `json:"version"`
+
+	// Version specifies the component registry.
 	Registry Registry `json:"registry"`
 }
 
