@@ -18,10 +18,9 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	ocmcontext "github.com/open-component-model/ocm-controller/pkg/fakes"
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
 
@@ -42,7 +41,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 						Component: component,
 						Semver:    "v0.0.1",
 						Source: v1alpha1.OCMRepository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
@@ -60,7 +59,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 						Component: component,
 						Semver:    "v0.0.1",
 						Source: v1alpha1.OCMRepository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 							SecretRef: &meta.LocalObjectReference{
 								Name: "test-name-secret",
 							},
@@ -96,7 +95,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 						Semver:             "v0.0.1",
 						ServiceAccountName: "test-service-account",
 						Source: v1alpha1.OCMRepository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
@@ -144,16 +143,17 @@ func TestClient_GetComponentVersion(t *testing.T) {
 			objs := make([]client.Object, 0)
 			component := "github.com/skarlso/ocm-demo-index"
 			cs := tt.subscription(component, &objs)
-			fakeKubeClient := env.FakeKubeClient(WithObjets(objs...))
+			fakeKubeClient := env.FakeKubeClient(WithObjects(objs...))
 
 			ocmClient := NewClient(fakeKubeClient)
-			err := env.AddComponentVersionToRepository(Component{
+			octx := ocmcontext.NewFakeOCMContext()
+			err := octx.AddComponent(&ocmcontext.Component{
 				Name:    component,
 				Version: "v0.0.1",
 			})
 			require.NoError(t, err)
 
-			cva, err := ocmClient.GetComponentVersion(context.Background(), ocm.New(), cs, "v0.0.1")
+			cva, err := ocmClient.GetComponentVersion(context.Background(), octx, cs, "v0.0.1")
 			assert.NoError(t, err)
 
 			assert.Equal(t, cs.Spec.Component, cva.GetName())
@@ -171,7 +171,7 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 			Component: "github.com/skarlso/ocm-demo-index",
 			Semver:    ">v0.0.1",
 			Source: v1alpha1.OCMRepository{
-				URL: env.repositoryURL,
+				URL: "localhost",
 			},
 			ServiceAccountName: "test-service-account",
 		},
@@ -206,15 +206,8 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 		Type: corev1.SecretTypeDockerConfigJson,
 	}
 
-	fakeKubeClient := env.FakeKubeClient(WithObjets(cs, serviceAccount, testSecret))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(cs, serviceAccount, testSecret))
 	ocmClient := NewClient(fakeKubeClient)
-	component := "github.com/skarlso/ocm-demo-index"
-
-	err := env.AddComponentVersionToRepository(Component{
-		Name:    component,
-		Version: "v0.0.1",
-	})
-	require.NoError(t, err)
 
 	octx, err := ocmClient.CreateAuthenticatedOCMContext(context.Background(), cs)
 	require.NoError(t, err)
@@ -238,7 +231,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 	testCases := []struct {
 		name             string
 		componentVersion func(name string) *v1alpha1.ComponentSubscription
-		setupComponents  func(name string) error
+		setupComponents  func(name string, context *ocmcontext.Context) error
 		expectedVersion  string
 	}{
 		{
@@ -253,15 +246,15 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 						Component: name,
 						Semver:    ">v0.0.1",
 						Source: v1alpha1.OCMRepository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
 			},
-			setupComponents: func(name string) error {
+			setupComponents: func(name string, context *ocmcontext.Context) error {
 				// v0.0.1 should not be chosen.
 				for _, v := range []string{"v0.0.1", "v0.0.5"} {
-					if err := env.AddComponentVersionToRepository(Component{
+					if err := context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
 					}); err != nil {
@@ -284,14 +277,14 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 						Component: name,
 						Semver:    "v0.0.1",
 						Source: v1alpha1.OCMRepository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
 			},
-			setupComponents: func(name string) error {
+			setupComponents: func(name string, context *ocmcontext.Context) error {
 				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
-					if err := env.AddComponentVersionToRepository(Component{
+					if err := context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
 					}); err != nil {
@@ -314,14 +307,14 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 						Component: name,
 						Semver:    "<=v0.0.2",
 						Source: v1alpha1.OCMRepository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
 			},
-			setupComponents: func(name string) error {
+			setupComponents: func(name string, context *ocmcontext.Context) error {
 				for _, v := range []string{"v0.0.1", "v0.0.2", "v0.0.3"} {
-					if err := env.AddComponentVersionToRepository(Component{
+					if err := context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
 					}); err != nil {
@@ -344,14 +337,14 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 						Component: name,
 						Semver:    "=v0.0.1",
 						Source: v1alpha1.OCMRepository{
-							URL: env.repositoryURL,
+							URL: "localhost",
 						},
 					},
 				}
 			},
-			setupComponents: func(name string) error {
+			setupComponents: func(name string, context *ocmcontext.Context) error {
 				for _, v := range []string{"v0.0.1", "v0.0.2"} {
-					if err := env.AddComponentVersionToRepository(Component{
+					if err := context.AddComponent(&ocmcontext.Component{
 						Name:    name,
 						Version: v,
 					}); err != nil {
@@ -369,11 +362,12 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			ocmClient := NewClient(fakeKubeClient)
 			component := "github.com/skarlso/ocm-demo-index"
 
-			err := tt.setupComponents(component)
+			octx := ocmcontext.NewFakeOCMContext()
+			err := tt.setupComponents(component, octx)
 			require.NoError(t, err)
 			cv := tt.componentVersion(component)
 
-			latest, err := ocmClient.GetLatestSourceComponentVersion(context.Background(), ocm.New(), cv)
+			latest, err := ocmClient.GetLatestSourceComponentVersion(context.Background(), octx, cv)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.expectedVersion, latest)
 		})
@@ -396,19 +390,23 @@ func TestClient_VerifyComponent(t *testing.T) {
 			Signature: publicKey1,
 		},
 	}
-	fakeKubeClient := env.FakeKubeClient(WithObjets(secret))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	ocmClient := NewClient(fakeKubeClient)
 	component := "github.com/skarlso/ocm-demo-index"
 
-	err = env.AddComponentVersionToRepository(Component{
+	octx := ocmcontext.NewFakeOCMContext()
+
+	c := &ocmcontext.Component{
 		Name:    component,
 		Version: "v0.0.1",
-		Sign: &Sign{
-			Name: Signature,
-			Key:  privateKey,
+		Sign: &ocmcontext.Sign{
+			Name:    Signature,
+			PrivKey: privateKey,
+			PubKey:  publicKey1,
+			Digest:  "3d879ecdea45acb7f8d85b89fd653288d84af4476eac4141822142ec59c13745",
 		},
-	})
-	require.NoError(t, err)
+	}
+	require.NoError(t, octx.AddComponent(c))
 
 	cv := &v1alpha1.ComponentSubscription{
 		ObjectMeta: metav1.ObjectMeta{
@@ -418,7 +416,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 		Spec: v1alpha1.ComponentSubscriptionSpec{
 			Component: component,
 			Source: v1alpha1.OCMRepository{
-				URL: env.repositoryURL,
+				URL: "localhost",
 			},
 			Verify: []v1alpha1.Signature{
 				{
@@ -433,7 +431,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifySourceComponent(context.Background(), ocm.New(), cv, "v0.0.1")
+	verified, err := ocmClient.VerifySourceComponent(context.Background(), octx, cv, "v0.0.1")
 	assert.NoError(t, err)
 	assert.True(t, verified, "verified should have been true, but it did not")
 }
@@ -444,7 +442,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	privateKey, err := os.ReadFile(filepath.Join("testdata", "private_key.pem"))
 	require.NoError(t, err)
 
-	secretName := "sign-secret-2"
+	secretName := "sign-secret"
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
@@ -454,19 +452,23 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 			Signature: publicKey2,
 		},
 	}
-	fakeKubeClient := env.FakeKubeClient(WithObjets(secret))
+	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	ocmClient := NewClient(fakeKubeClient)
 	component := "github.com/skarlso/ocm-demo-index"
 
-	err = env.AddComponentVersionToRepository(Component{
+	octx := ocmcontext.NewFakeOCMContext()
+
+	c := &ocmcontext.Component{
 		Name:    component,
 		Version: "v0.0.1",
-		Sign: &Sign{
-			Name: Signature,
-			Key:  privateKey,
+		Sign: &ocmcontext.Sign{
+			Name:    Signature,
+			PrivKey: privateKey,
+			PubKey:  publicKey2,
+			Digest:  "3d879ecdea45acb7f8d85b89fd653288d84af4476eac4141822142ec59c13745",
 		},
-	})
-	require.NoError(t, err)
+	}
+	require.NoError(t, octx.AddComponent(c))
 
 	cv := &v1alpha1.ComponentSubscription{
 		ObjectMeta: metav1.ObjectMeta{
@@ -476,7 +478,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 		Spec: v1alpha1.ComponentSubscriptionSpec{
 			Component: component,
 			Source: v1alpha1.OCMRepository{
-				URL: env.repositoryURL,
+				URL: "localhost",
 			},
 			Verify: []v1alpha1.Signature{
 				{
@@ -491,7 +493,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifySourceComponent(context.Background(), ocm.New(), cv, "v0.0.1")
+	verified, err := ocmClient.VerifySourceComponent(context.Background(), octx, cv, "v0.0.1")
 	require.Error(t, err)
 	assert.False(t, verified, "verified should have been false, but it did not")
 }
