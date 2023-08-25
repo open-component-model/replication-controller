@@ -2,27 +2,21 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: replication-controller
-  labels:
-    control-plane: controller
+  namespace: ocm-system
 spec:
-  selector:
-    matchLabels:
-      app: replication-controller
   template:
     spec:
       containers:
         - name: manager
           image: open-component-model/replication-controller
-          env:
-            - name: REGISTRY_ROOT_CERTIFICATE # optionally define to override default location
-              value: /certs/ca.pem
           volumeMounts:
-            - mountPath: "/certs"
+            - mountPath: "/etc/ssl/certs/registry-root.pem"
+              subPath: "registry-root.pem"
               name: "certificates"
       volumes:
         - name: "certificates"
           secret:
-            secretName: "registry-certs"
+            secretName: "ocm-registry-tls-certs"
             items:
-              - key: "ca.pem"
-                path: "ca.pem"
+              - key: "caFile"
+                path: "registry-root.pem"
