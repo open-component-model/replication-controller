@@ -3,4 +3,4 @@ kind: Namespace
 metadata:
   name: ocm-system
   labels:
-    control-plane: controller
+    control-plane: replication-controller

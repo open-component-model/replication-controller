@@ -15,10 +15,6 @@ settings = {
         "user": os.getenv("GITHUB_USER", ""),
     },
     "verification_keys": {},
-    "root_certificate_secret": {
-        "enable": True,
-        "name": "registry-certs",
-    },
 }
 
 # global settings
@@ -56,14 +52,9 @@ install = kustomize('config/default')
 # Update the root security group. Tilt requires root access to update the
 # running process.
 objects = decode_yaml_stream(install)
-root_certificate = settings.get("root_certificate_secret")
 for o in objects:
     if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'replication-controller':
         o['spec']['template']['spec']['securityContext']['runAsNonRoot'] = False
-        if root_certificate.get("enable"):
-            print('updating replication-controller deployment to add generated certificates')
-            o['spec']['template']['spec']['volumes'] = [{'name': 'root-certificate', 'secret': {'secretName': root_certificate.get("name"), 'items': [{'key': 'caFile', 'path': 'ca.pem'}]}}]
-            o['spec']['template']['spec']['containers'][0]['volumeMounts'] = [{'mountPath': '/certs', 'name': 'root-certificate'}]
         break
 
 updated_install = encode_yaml_stream(objects)
@@ -95,7 +86,6 @@ local_resource(
         "api",
         "controllers",
         "pkg",
-        "hack/entrypoint.sh",
     ],
 )
 
@@ -105,7 +95,7 @@ local_resource(
 # on _any_ file change. We only want to monitor the binary.
 # If debugging is enabled, we switch to a different docker file using
 # the delve port.
-entrypoint = ['/entrypoint.sh', '/manager']
+entrypoint = ['/manager']
 dockerfile = 'tilt.dockerfile'
 docker_build_with_restart(
     'ghcr.io/open-component-model/replication-controller',
@@ -114,10 +104,8 @@ docker_build_with_restart(
     entrypoint = entrypoint,
     only=[
       './bin',
-      './hack/entrypoint.sh',
     ],
     live_update = [
         sync('./bin/manager', '/manager'),
-        sync('./hack/entrypoint.sh', '/entrypoint.sh'),
     ],
 )
