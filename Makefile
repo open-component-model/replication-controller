@@ -176,3 +176,11 @@ generate-license:
 			$$f \
 			--skip-unrecognised; \
 	done
+
+.PHONY: create-helmchart
+create-helmchart:
+	./hack/create_helm_chart.sh "local" "replication-controller"
+
+.PHONY: create-helmchart-release
+create-helmchart-release:
+	./hack/create_helm_chart.sh "release" "replication-controller"
