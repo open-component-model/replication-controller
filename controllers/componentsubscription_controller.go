@@ -15,7 +15,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/klog/v2"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -66,58 +65,10 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 
 	// The replication controller doesn't need a shouldReconcile, because it should always reconcile,
 	// that is its purpose.
-	var patchHelper *patch.Helper
-	patchHelper, err = patch.NewHelper(obj, r.Client)
-	if err != nil {
-		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.PatchFailedReason, err.Error())
-		return
-	}
+	patchHelper := patch.NewSerialPatcher(obj, r.Client)
 
 	// Always attempt to patch the object and status after each reconciliation.
 	defer func() {
-		// Patching has not been set up, or the controller errored earlier.
-		if patchHelper == nil {
-			return
-		}
-
-		if condition := conditions.Get(obj, meta.StalledCondition); condition != nil && condition.Status == metav1.ConditionTrue {
-			conditions.Delete(obj, meta.ReconcilingCondition)
-		}
-
-		// Check if it's a successful reconciliation.
-		// We don't set Requeue in case of error, so we can safely check for Requeue.
-		if result.RequeueAfter == obj.GetRequeueAfter() && !result.Requeue && err == nil {
-			// Remove the reconciling condition if it's set.
-			conditions.Delete(obj, meta.ReconcilingCondition)
-
-			// Set the return err as the ready failure message if the resource is not ready, but also not reconciling or stalled.
-			if ready := conditions.Get(obj, meta.ReadyCondition); ready != nil && ready.Status == metav1.ConditionFalse && !conditions.IsStalled(obj) {
-				err = errors.New(conditions.GetMessage(obj, meta.ReadyCondition))
-			}
-		}
-
-		// If still reconciling then reconciliation did not succeed, set to ProgressingWithRetry to
-		// indicate that reconciliation will be retried.
-		if conditions.IsReconciling(obj) {
-			reconciling := conditions.Get(obj, meta.ReconcilingCondition)
-			reconciling.Reason = meta.ProgressingWithRetryReason
-			conditions.Set(obj, reconciling)
-		}
-
-		// If not reconciling or stalled than mark Ready=True
-		if !conditions.IsReconciling(obj) &&
-			!conditions.IsStalled(obj) &&
-			err == nil &&
-			result.RequeueAfter == obj.GetRequeueAfter() {
-
-			conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
-		}
-
-		// Set status observed generation option if the component is stalled or ready.
-		if conditions.IsStalled(obj) || conditions.IsReady(obj) {
-			obj.Status.ObservedGeneration = obj.Generation
-		}
-
 		if perr := patchHelper.Patch(ctx, obj); perr != nil {
 			err = errors.Join(err, perr)
 		}
@@ -131,25 +82,36 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	octx, err := r.OCMClient.CreateAuthenticatedOCMContext(ctx, obj)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to authenticate OCM context: %w", err)
+		err := fmt.Errorf("failed to authenticate OCM context: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.AuthenticationFailedReason, err.Error())
+
+		return ctrl.Result{}, err
 	}
 
 	version, err := r.OCMClient.GetLatestSourceComponentVersion(ctx, octx, obj)
 	if err != nil {
+		err := fmt.Errorf("failed to get latest component version: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.PullingLatestVersionFailedReason, err.Error())
-		return ctrl.Result{}, fmt.Errorf("failed to get latest component version: %w", err)
+
+		// we don't want to fail but keep searching until it's there. But we do mark the subscription as failed.
+		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 	logger.V(4).Info("got newest version from component", "version", version)
 
 	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
 	if version == obj.Status.LastAppliedVersion {
 		logger.Info("latest version and last applied version are a match and not empty")
+		conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
+
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
 	latestSourceComponentVersion, err := semver.NewVersion(version)
 	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("failed to parse version: %w", err)
+		err := fmt.Errorf("failed to parse source component version: %w", err)
+		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SemverConversionFailedReason, err.Error())
+
+		return ctrl.Result{}, err
 	}
 
 	lastAppliedOriginal := "0.0.0"
@@ -159,14 +121,18 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	lastAppliedVersion, err := semver.NewVersion(lastAppliedOriginal)
 	if err != nil {
+		err := fmt.Errorf("failed to parse latest version: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.SemverConversionFailedReason, err.Error())
-		return ctrl.Result{}, fmt.Errorf("failed to parse latest version: %w", err)
+
+		return ctrl.Result{}, err
 	}
 
 	logger.V(4).Info("latest applied version is", "version", lastAppliedVersion.Original())
 
 	if latestSourceComponentVersion.LessThan(lastAppliedVersion) || latestSourceComponentVersion.Equal(lastAppliedVersion) {
 		logger.Info("no new version found", "version", latestSourceComponentVersion.Original(), "latest", lastAppliedVersion.Original())
+		conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
+
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
 
@@ -175,8 +141,10 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	sourceComponentVersion, err := r.OCMClient.GetComponentVersion(ctx, octx, obj, latestSourceComponentVersion.Original())
 	if err != nil {
+		err := fmt.Errorf("failed to get latest component version: %w", err)
 		conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.GetComponentDescriptorFailedReason, err.Error())
-		return ctrl.Result{}, fmt.Errorf("failed to get latest component version: %w", err)
+
+		return ctrl.Result{}, err
 	}
 
 	defer func() {
@@ -189,9 +157,11 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	if obj.Spec.Destination != nil {
 		if err := r.OCMClient.TransferComponent(ctx, octx, obj, sourceComponentVersion, latestSourceComponentVersion.Original()); err != nil {
+			err := fmt.Errorf("failed to transfer components: %w", err)
 			conditions.MarkFalse(obj, meta.ReadyCondition, v1alpha1.TransferFailedReason, err.Error())
+
 			logger.Error(err, "transferring components failed")
-			return ctrl.Result{}, fmt.Errorf("failed to transfer components: %w", err)
+			return ctrl.Result{}, err
 		}
 
 		obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
@@ -204,10 +174,8 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	// Update the replicated version to the latest version
 	obj.Status.LastAppliedVersion = latestSourceComponentVersion.Original()
 
-	// Remove any stale Ready condition, most likely False, set above. Its value
-	// is derived from the overall result of the reconciliation in the deferred
-	// block at the very end.
-	conditions.Delete(obj, meta.ReadyCondition)
+	logger.Info("resource is ready")
+	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
 
 	// Always requeue to constantly check for new versions.
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
