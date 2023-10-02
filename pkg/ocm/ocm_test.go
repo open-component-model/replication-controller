@@ -296,6 +296,35 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 			expectedVersion: "v0.0.1",
 		},
 		{
+			name: "if semver is not defined the first one is returned",
+			componentVersion: func(name string) *v1alpha1.ComponentSubscription {
+				return &v1alpha1.ComponentSubscription{
+					ObjectMeta: metav1.ObjectMeta{
+						Name:      "test-name",
+						Namespace: "default",
+					},
+					Spec: v1alpha1.ComponentSubscriptionSpec{
+						Component: name,
+						Source: v1alpha1.OCMRepository{
+							URL: "localhost",
+						},
+					},
+				}
+			},
+			setupComponents: func(name string, context *ocmcontext.Context) error {
+				for _, v := range []string{"v0.0.5", "v0.0.6", "v0.0.7"} {
+					if err := context.AddComponent(&ocmcontext.Component{
+						Name:    name,
+						Version: v,
+					}); err != nil {
+						return err
+					}
+				}
+				return nil
+			},
+			expectedVersion: "v0.0.7",
+		},
+		{
 			name: "semver is in between available versions should return the one that's still matching instead of the latest available",
 			componentVersion: func(name string) *v1alpha1.ComponentSubscription {
 				return &v1alpha1.ComponentSubscription{
