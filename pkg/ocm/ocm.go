@@ -196,18 +196,23 @@ func (c *Client) GetLatestSourceComponentVersion(ctx context.Context, octx ocm.C
 		return versions[i].Semver.GreaterThan(versions[j].Semver)
 	})
 
-	constraint, err := semver.NewConstraint(obj.Spec.Semver)
-	if err != nil {
-		return "", fmt.Errorf("failed to parse constraint version: %w", err)
-	}
-
-	for _, v := range versions {
-		if valid, _ := constraint.Validate(v.Semver); valid {
-			return v.Version, nil
+	if obj.Spec.Semver != "" {
+		constraint, err := semver.NewConstraint(obj.Spec.Semver)
+		if err != nil {
+			return "", fmt.Errorf("failed to parse constraint version: %w", err)
 		}
+
+		for _, v := range versions {
+			if valid, _ := constraint.Validate(v.Semver); valid {
+				return v.Version, nil
+			}
+		}
+
+		return "", fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Semver)
 	}
 
-	return "", fmt.Errorf("no matching versions found for constraint '%s'", obj.Spec.Semver)
+	// if there are no constraints, return the first version from the list.
+	return versions[0].Version, nil
 }
 
 // Version has two values to be able to sort a list but still return the actual Version.
