@@ -81,9 +81,10 @@ func main() {
 
 	ocmClient := ocm.NewClient(mgr.GetClient())
 	if err = (&controllers.ComponentSubscriptionReconciler{
-		Client:    mgr.GetClient(),
-		Scheme:    mgr.GetScheme(),
-		OCMClient: ocmClient,
+		Client:        mgr.GetClient(),
+		Scheme:        mgr.GetScheme(),
+		OCMClient:     ocmClient,
+		EventRecorder: mgr.GetEventRecorderFor("component-subscription-controller"),
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "ComponentSubscription")
 		os.Exit(1)
