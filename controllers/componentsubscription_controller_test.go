@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
@@ -187,12 +188,17 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			cv := tt.subscription()
 			client := env.FakeKubeClient(WithObjets(cv))
 			fakeOcm := &fakes.MockFetcher{}
+			recorder := &record.FakeRecorder{
+				Events:        make(chan string, 32),
+				IncludeObject: true,
+			}
 			tt.setupMock(fakeOcm)
 
 			cvr := ComponentSubscriptionReconciler{
-				Scheme:    env.scheme,
-				Client:    client,
-				OCMClient: fakeOcm,
+				Scheme:        env.scheme,
+				Client:        client,
+				OCMClient:     fakeOcm,
+				EventRecorder: recorder,
 			}
 
 			_, err := cvr.Reconcile(context.Background(), ctrl.Request{

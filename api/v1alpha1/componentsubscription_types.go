@@ -5,6 +5,7 @@
 package v1alpha1
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/fluxcd/pkg/apis/meta"
@@ -102,6 +103,18 @@ type ComponentSubscriptionStatus struct {
 	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 	// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
+}
+
+func (in *ComponentSubscription) GetVID() map[string]string {
+	vid := fmt.Sprintf("%s:%s", in.Status.LastAttemptedVersion, in.Status.LastAppliedVersion)
+	metadata := make(map[string]string)
+	metadata[GroupVersion.Group+"/component_subscription"] = vid
+
+	return metadata
+}
+
+func (in *ComponentSubscription) SetObservedGeneration(v int64) {
+	in.Status.ObservedGeneration = v
 }
 
 // GetConditions returns the conditions of the ComponentVersion.
