@@ -72,7 +72,7 @@ func (r *ComponentSubscriptionReconciler) SetupWithManager(mgr ctrl.Manager) err
 		if !ok {
 			return []string{}
 		}
-		if obj.Spec.Destination.SecretRef == nil {
+		if obj.Spec.Destination == nil || obj.Spec.Destination.SecretRef == nil {
 			return []string{}
 		}
 
