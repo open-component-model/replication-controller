@@ -18,8 +18,6 @@ import (
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/status"
-	"github.com/open-component-model/replication-controller/api/v1alpha1"
-	"github.com/open-component-model/replication-controller/pkg/ocm"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -33,6 +31,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 	"sigs.k8s.io/controller-runtime/pkg/source"
+
+	"github.com/open-component-model/replication-controller/api/v1alpha1"
+	"github.com/open-component-model/replication-controller/pkg/ocm"
 )
 
 // ComponentSubscriptionReconciler reconciles a ComponentSubscription object
@@ -66,7 +67,7 @@ func (r *ComponentSubscriptionReconciler) SetupWithManager(mgr ctrl.Manager) err
 		return fmt.Errorf("failed setting index fields: %w", err)
 	}
 
-	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.ComponentSubscription{}, sourceKey, func(rawObj client.Object) []string {
+	if err := mgr.GetFieldIndexer().IndexField(context.TODO(), &v1alpha1.ComponentSubscription{}, destinationKey, func(rawObj client.Object) []string {
 		obj, ok := rawObj.(*v1alpha1.ComponentSubscription)
 		if !ok {
 			return []string{}
