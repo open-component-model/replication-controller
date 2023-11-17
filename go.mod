@@ -28,9 +28,9 @@ require (
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/distribution/distribution/v3 v3.0.0-20230327091844-0c958010ace2
 	github.com/fluxcd/pkg/apis/meta v1.1.2
-	github.com/fluxcd/pkg/runtime v0.35.0
-	github.com/go-logr/logr v1.2.4
-	github.com/open-component-model/ocm v0.4.0
+	github.com/fluxcd/pkg/runtime v0.42.0
+	github.com/go-logr/logr v1.3.0
+	github.com/open-component-model/ocm v0.4.3
 	github.com/open-component-model/ocm-controller v0.16.1
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.1
@@ -150,6 +150,7 @@ require (
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.14.0 // indirect
+	github.com/go-test/deep v1.1.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang-jwt/jwt/v4 v4.5.0 // indirect
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
