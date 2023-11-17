@@ -11,12 +11,9 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	eventv1 "github.com/fluxcd/pkg/apis/event/v1beta1"
 	"github.com/fluxcd/pkg/apis/meta"
-	"github.com/fluxcd/pkg/runtime/conditions"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
-	"github.com/open-component-model/ocm-controller/pkg/event"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -214,7 +211,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	// Because of the predicate, this subscription will be reconciled again once there is an update to its status field.
 	if version == obj.Status.LastAppliedVersion {
-		r.markAsDone(obj)
+		status.MarkReady(r.EventRecorder, obj, "Reconciliation success")
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
@@ -241,7 +238,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	}
 
 	if latestSourceComponentVersion.LessThan(lastAppliedVersion) || latestSourceComponentVersion.Equal(lastAppliedVersion) {
-		r.markAsDone(obj)
+		status.MarkReady(r.EventRecorder, obj, "Reconciliation success")
 
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 	}
@@ -281,13 +278,8 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	// Update the replicated version to the latest version
 	obj.Status.LastAppliedVersion = latestSourceComponentVersion.Original()
 
-	r.markAsDone(obj)
+	status.MarkReady(r.EventRecorder, obj, "Reconciliation success")
 
 	// Always requeue to constantly check for new versions.
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
-}
-
-func (r *ComponentSubscriptionReconciler) markAsDone(obj *v1alpha1.ComponentSubscription) {
-	conditions.MarkTrue(obj, meta.ReadyCondition, meta.SucceededReason, "Reconciliation success")
-	event.New(r.EventRecorder, obj, eventv1.EventSeverityInfo, "Reconciliation success", nil)
 }

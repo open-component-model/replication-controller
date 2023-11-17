@@ -27,12 +27,11 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/distribution/distribution/v3 v3.0.0-20230327091844-0c958010ace2
-	github.com/fluxcd/pkg/apis/event v0.5.2
 	github.com/fluxcd/pkg/apis/meta v1.1.2
 	github.com/fluxcd/pkg/runtime v0.35.0
 	github.com/go-logr/logr v1.2.4
 	github.com/open-component-model/ocm v0.4.0
-	github.com/open-component-model/ocm-controller v0.16.0
+	github.com/open-component-model/ocm-controller v0.16.1
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.1
 	k8s.io/apimachinery v0.28.1
@@ -127,6 +126,7 @@ require (
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fluxcd/helm-controller/api v0.36.0 // indirect
 	github.com/fluxcd/kustomize-controller/api v1.0.0-rc.1 // indirect
+	github.com/fluxcd/pkg/apis/event v0.5.2 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/fvbommel/sortorder v1.1.0 // indirect
