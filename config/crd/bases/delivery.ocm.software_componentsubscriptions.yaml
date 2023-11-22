@@ -21,7 +21,7 @@ spec:
     schema:
       openAPIV3Schema:
         description: ComponentSubscription is the Schema for the componentsubscriptions
-          API
+          API.
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
@@ -47,7 +47,7 @@ spec:
                 type: string
               destination:
                 description: Destination holds the destination or target OCM Repository
-                  details. The ComponentVersion will be transfered into this repository.
+                  details. The ComponentVersion will be transferred into this repository.
                 properties:
                   secretRef:
                     description: SecretRef specifies the credentials used to access
@@ -142,7 +142,7 @@ spec:
             type: object
           status:
             description: ComponentSubscriptionStatus defines the observed state of
-              ComponentSubscription
+              ComponentSubscription.
             properties:
               conditions:
                 items:

@@ -35,9 +35,20 @@ const dockerConfigKey = ".dockerconfigjson"
 type Contract interface {
 	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error)
 	VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error)
-	GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error)
+	GetComponentVersion(
+		ctx context.Context,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentSubscription,
+		version string,
+	) (ocm.ComponentVersionAccess, error)
 	GetLatestSourceComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription) (string, error)
-	TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error
+	TransferComponent(
+		ctx context.Context,
+		octx ocm.Context,
+		obj *v1alpha1.ComponentSubscription,
+		sourceComponentVersion ocm.ComponentVersionAccess,
+		version string,
+	) error
 }
 
 // Client implements the OCM fetcher interface.
@@ -77,7 +88,12 @@ func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha
 }
 
 // GetComponentVersion returns a component Version. It's the caller's responsibility to clean it up and close the component Version once done with it.
-func (c *Client) GetComponentVersion(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (ocm.ComponentVersionAccess, error) {
+func (c *Client) GetComponentVersion(
+	ctx context.Context,
+	octx ocm.Context,
+	obj *v1alpha1.ComponentSubscription,
+	version string,
+) (ocm.ComponentVersionAccess, error) {
 	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
 	repo, err := octx.RepositoryForSpec(repoSpec)
 	if err != nil {
@@ -143,6 +159,7 @@ func (c *Client) VerifySourceComponent(ctx context.Context, octx ocm.Context, ob
 		for _, s := range cv.GetDescriptor().Signatures {
 			if s.Name == signature.Name {
 				value = s.Digest.Value
+
 				break
 			}
 		}
@@ -247,6 +264,7 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 		parsed, err := semver.NewVersion(v)
 		if err != nil {
 			logger.Error(err, "skipping invalid version", "version", v)
+
 			continue
 		}
 		result = append(result, Version{
@@ -254,10 +272,17 @@ func (c *Client) listComponentVersions(logger logr.Logger, octx ocm.Context, obj
 			Version: v,
 		})
 	}
+
 	return result, nil
 }
 
-func (c *Client) TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
+func (c *Client) TransferComponent(
+	ctx context.Context,
+	octx ocm.Context,
+	obj *v1alpha1.ComponentSubscription,
+	sourceComponentVersion ocm.ComponentVersionAccess,
+	version string,
+) error {
 	sourceRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
 	source, err := octx.RepositoryForSpec(sourceRepoSpec)
 	if err != nil {
@@ -269,6 +294,7 @@ func (c *Client) TransferComponent(ctx context.Context, octx ocm.Context, obj *v
 	if err != nil {
 		return fmt.Errorf("failed to verify signature: %w", err)
 	}
+
 	if !ok {
 		return fmt.Errorf("on of the signatures failed to match: %w", err)
 	}
@@ -315,13 +341,13 @@ func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Cont
 	logger := log.FromContext(ctx)
 
 	if err := csdk.ConfigureCredentials(ctx, ocmCtx, c.client, repository.URL, repository.SecretRef.Name, namespace); err != nil {
-		logger.V(4).Error(err, "failed to find destination credentials")
+		logger.V(v1alpha1.LevelDebug).Error(err, "failed to find destination credentials")
 
 		// we don't ignore not found errors
 		return fmt.Errorf("failed to configure credentials for component: %w", err)
 	}
 
-	logger.V(4).Info("credentials configured")
+	logger.V(v1alpha1.LevelDebug).Info("credentials configured")
 
 	return nil
 }
@@ -329,7 +355,7 @@ func (c *Client) configureAccessCredentials(ctx context.Context, ocmCtx ocm.Cont
 func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Context, serviceAccountName, namespace string) error {
 	logger := log.FromContext(ctx)
 
-	logger.V(4).Info("configuring service account credentials")
+	logger.V(v1alpha1.LevelDebug).Info("configuring service account credentials")
 	account := &corev1.ServiceAccount{}
 	if err := c.client.Get(ctx, types.NamespacedName{
 		Name:      serviceAccountName,
@@ -338,7 +364,7 @@ func (c *Client) configureServiceAccountAccess(ctx context.Context, octx ocm.Con
 		return fmt.Errorf("failed to fetch service account: %w", err)
 	}
 
-	logger.V(4).Info("got service account", "name", account.GetName())
+	logger.V(v1alpha1.LevelDebug).Info("got service account", "name", account.GetName())
 
 	for _, imagePullSecret := range account.ImagePullSecrets {
 		secret := &corev1.Secret{}
