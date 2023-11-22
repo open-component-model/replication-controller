@@ -33,7 +33,9 @@ import (
 	"github.com/open-component-model/replication-controller/pkg/ocm"
 )
 
-// ComponentSubscriptionReconciler reconciles a ComponentSubscription object
+const requeueAfter = 10 * time.Second
+
+// ComponentSubscriptionReconciler reconciles a ComponentSubscription object.
 type ComponentSubscriptionReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
@@ -59,6 +61,7 @@ func (r *ComponentSubscriptionReconciler) SetupWithManager(mgr ctrl.Manager) err
 		}
 
 		ns := obj.GetNamespace()
+
 		return []string{fmt.Sprintf("%s/%s", ns, obj.Spec.Source.SecretRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
@@ -74,6 +77,7 @@ func (r *ComponentSubscriptionReconciler) SetupWithManager(mgr ctrl.Manager) err
 		}
 
 		ns := obj.GetNamespace()
+
 		return []string{fmt.Sprintf("%s/%s", ns, obj.Spec.Destination.SecretRef.Name)}
 	}); err != nil {
 		return fmt.Errorf("failed setting index fields: %w", err)
@@ -124,7 +128,7 @@ func (r *ComponentSubscriptionReconciler) findObjects(sourceKey string, destinat
 			}] = struct{}{}
 		}
 
-		requests := make([]reconcile.Request, len(requestMap))
+		requests := make([]reconcile.Request, 0, len(requestMap))
 		for k := range requestMap {
 			requests = append(requests, k)
 		}
@@ -149,11 +153,11 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 			return ctrl.Result{}, nil
 		}
 
-		return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+		return ctrl.Result{RequeueAfter: requeueAfter}, nil
 	}
 
 	if obj.DeletionTimestamp != nil {
-		return
+		return ctrl.Result{}, nil
 	}
 
 	// The replication controller doesn't need a shouldReconcile, because it should always reconcile,

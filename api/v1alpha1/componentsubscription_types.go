@@ -30,7 +30,7 @@ type ComponentSubscriptionSpec struct {
 	Source OCMRepository `json:"source"`
 
 	// Destination holds the destination or target OCM Repository details. The ComponentVersion
-	// will be transfered into this repository.
+	// will be transferred into this repository.
 	// +optional
 	Destination *OCMRepository `json:"destination,omitempty"`
 
@@ -79,7 +79,7 @@ type OCMRepository struct {
 	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
-// ComponentSubscriptionStatus defines the observed state of ComponentSubscription
+// ComponentSubscriptionStatus defines the observed state of ComponentSubscription.
 type ComponentSubscriptionStatus struct {
 	// LastAttemptedVersion defines the latest version encountered while checking component versions.
 	// This might be different from last applied version which should be the latest applied/replicated version.
@@ -165,7 +165,7 @@ func (in ComponentSubscription) GetComponentVersion() Component {
 //+kubebuilder:object:root=true
 //+kubebuilder:subresource:status
 
-// ComponentSubscription is the Schema for the componentsubscriptions API
+// ComponentSubscription is the Schema for the componentsubscriptions API.
 type ComponentSubscription struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
@@ -176,7 +176,7 @@ type ComponentSubscription struct {
 
 //+kubebuilder:object:root=true
 
-// ComponentSubscriptionList contains a list of ComponentSubscription
+// ComponentSubscriptionList contains a list of ComponentSubscription.
 type ComponentSubscriptionList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
