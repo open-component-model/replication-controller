@@ -25,8 +25,11 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/signing"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/transfer/transferhandler/standard"
+	ocmsigning "github.com/open-component-model/ocm/pkg/signing"
+	"github.com/open-component-model/ocm/pkg/signing/handlers/rsa"
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
+	"github.com/open-component-model/replication-controller/pkg/sign"
 )
 
 const dockerConfigKey = ".dockerconfigjson"
@@ -35,6 +38,7 @@ const dockerConfigKey = ".dockerconfigjson"
 type Contract interface {
 	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error)
 	VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error)
+	SignDestinationComponent(ctx context.Context, component ocm.ComponentVersionAccess) ([]byte, error)
 	GetComponentVersion(
 		ctx context.Context,
 		octx ocm.Context,
@@ -63,6 +67,37 @@ func NewClient(client client.Client) *Client {
 	return &Client{
 		client: client,
 	}
+}
+
+// SignDestinationComponent signs the component before transferring it and returns the public key for storing it on the
+// subscription.
+func (c *Client) SignDestinationComponent(_ context.Context, component ocm.ComponentVersionAccess) ([]byte, error) {
+	pub, priv, err := sign.GenerateSigningKeyPEMPair()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate signing key: %w", err)
+	}
+
+	resolver := ocm.NewCompoundResolver(component.Repository())
+	opts := signing.NewOptions(
+		signing.Sign(
+			ocmsigning.DefaultHandlerRegistry().GetSigner(rsa.Algorithm),
+			v1alpha1.InternalSignatureName,
+		),
+		signing.Resolver(resolver),
+		signing.PrivateKey(v1alpha1.InternalSignatureName, priv),
+		signing.Update(),
+		signing.VerifyDigests(),
+	)
+
+	if err := opts.Complete(signingattr.Get(component.GetContext())); err != nil {
+		return nil, fmt.Errorf("failed to complete signing: %w", err)
+	}
+
+	if _, err := signing.Apply(nil, nil, component, opts); err != nil {
+		return nil, fmt.Errorf("failed to finalize signing: %w", err)
+	}
+
+	return pub, nil
 }
 
 func (c *Client) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error) {

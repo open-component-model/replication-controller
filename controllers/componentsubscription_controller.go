@@ -267,6 +267,11 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	if obj.Spec.Destination != nil {
 		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "transferring component to target repository: %s", obj.Spec.Destination.URL)
 
+		pub, err := r.OCMClient.SignDestinationComponent(ctx, sourceComponentVersion)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
+
 		if err := r.OCMClient.TransferComponent(ctx, octx, obj, sourceComponentVersion, latestSourceComponentVersion.Original()); err != nil {
 			err := fmt.Errorf("failed to transfer components: %w", err)
 			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.TransferFailedReason, err.Error())
@@ -275,6 +280,12 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 		}
 
 		obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
+		obj.Status.Signature = []v1alpha1.Signature{
+			{
+				Name:          v1alpha1.InternalSignatureName,
+				PublicKeyBlob: pub,
+			},
+		}
 	} else {
 		obj.Status.ReplicatedRepositoryURL = obj.Spec.Source.URL
 	}

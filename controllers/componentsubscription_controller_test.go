@@ -71,6 +71,42 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			},
 		},
 		{
+			name: "destination component is signed with internal key",
+			subscription: func() *v1alpha1.ComponentSubscription {
+				cv := DefaultComponentSubscription.DeepCopy()
+				return cv
+			},
+			setupMock: func(fakeOcm *fakes.MockFetcher) {
+				root := &mockComponent{
+					t: t,
+					descriptor: &ocmdesc.ComponentDescriptor{
+						ComponentSpec: ocmdesc.ComponentSpec{
+							ObjectMeta: v1.ObjectMeta{
+								Name:    "github.com/open-component-model/component",
+								Version: "v0.0.1",
+							},
+							References: ocmdesc.References{
+								{
+									ElementMeta: ocmdesc.ElementMeta{
+										Name:    "test-ref-1",
+										Version: "v0.0.1",
+									},
+									ComponentName: "github.com/skarlso/embedded",
+								},
+							},
+						},
+					},
+				}
+				fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
+				fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+			},
+			verifyMock: func(fetcher *fakes.MockFetcher) bool {
+				args := fetcher.SignDestinationComponentCallingArgumentsOnCall(0)
+				name := args[0]
+				return name == "github.com/open-component-model/component"
+			},
+		},
+		{
 			name: "no transfer is called if destination is left empty",
 			subscription: func() *v1alpha1.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()
@@ -102,7 +138,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
 			},
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
-				return fetcher.TransferComponentWasNotCalled()
+				return fetcher.TransferComponentWasNotCalled() && fetcher.SignDestinationComponentNotCalled()
 			},
 		},
 		{

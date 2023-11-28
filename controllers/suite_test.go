@@ -14,7 +14,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
-	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
 
@@ -62,13 +61,13 @@ var (
 			Interval: metav1.Duration{Duration: 10 * time.Second},
 			Source: v1alpha1.OCMRepository{
 				URL: "https://source.com",
-				SecretRef: &meta.LocalObjectReference{
+				SecretRef: &corev1.LocalObjectReference{
 					Name: "source-secret",
 				},
 			},
 			Destination: &v1alpha1.OCMRepository{
 				URL: "https://destination.com",
-				SecretRef: &meta.LocalObjectReference{
+				SecretRef: &corev1.LocalObjectReference{
 					Name: "destination-secret",
 				},
 			},

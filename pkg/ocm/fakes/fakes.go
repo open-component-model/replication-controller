@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocm2 "github.com/open-component-model/replication-controller/pkg/ocm"
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
@@ -28,6 +29,25 @@ type MockFetcher struct {
 	getLatestComponentVersionCalledWith [][]any
 	transferComponentVersionErr         error
 	transferComponentVersionCalledWith  [][]any
+	signDestinationComponentCalledWith  [][]any
+}
+
+var _ ocm2.Contract = &MockFetcher{}
+
+func (m *MockFetcher) SignDestinationComponent(_ context.Context, component ocm.ComponentVersionAccess) ([]byte, error) {
+	m.signDestinationComponentCalledWith = append(m.signDestinationComponentCalledWith, []any{component.GetName()})
+	return nil, nil
+}
+func (m *MockFetcher) SignDestinationComponentNotCalled() bool {
+	return len(m.signDestinationComponentCalledWith) == 0
+}
+
+func (m *MockFetcher) SignDestinationComponentCallingArgumentsOnCall(i int) []any {
+	if i > len(m.signDestinationComponentCalledWith) {
+		return nil
+	}
+
+	return m.signDestinationComponentCalledWith[i]
 }
 
 func (m *MockFetcher) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error) {

@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	_ "github.com/distribution/distribution/v3/registry/storage/driver/inmemory"
-	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -60,7 +59,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 						Semver:    "v0.0.1",
 						Source: v1alpha1.OCMRepository{
 							URL: "localhost",
-							SecretRef: &meta.LocalObjectReference{
+							SecretRef: &corev1.LocalObjectReference{
 								Name: "test-name-secret",
 							},
 						},
@@ -451,7 +450,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 				{
 					Name: Signature,
 					PublicKey: v1alpha1.SecretRef{
-						SecretRef: meta.LocalObjectReference{
+						SecretRef: corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},
@@ -513,7 +512,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 				{
 					Name: Signature,
 					PublicKey: v1alpha1.SecretRef{
-						SecretRef: meta.LocalObjectReference{
+						SecretRef: corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},
