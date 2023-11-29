@@ -9,3 +9,8 @@ const (
 	// InternalSignatureName is the internal name used for a signature.
 	InternalSignatureName = "replication-controller-signed"
 )
+
+const (
+	// ProductDescriptionType defines the type of the ProductDescription resource in the component version.
+	ProductDescriptionType = "productdescription.mpas.ocm.software"
+)

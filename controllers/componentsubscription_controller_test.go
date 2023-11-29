@@ -189,7 +189,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				cv := DefaultComponentSubscription.DeepCopy()
 				return cv
 			},
-			err: "failed to reconcile component: failed to transfer components: nope",
+			err: "failed to transfer components: nope",
 			setupMock: func(fakeOcm *fakes.MockFetcher) {
 				root := &mockComponent{
 					t: t,

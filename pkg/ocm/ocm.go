@@ -326,7 +326,6 @@ func (c *Client) TransferComponent(
 		standard.Overwrite(true),
 		standard.Resolver(source),
 		standard.Resolver(target),
-		// if additional resolvers are required they could be added here...
 	)
 	if err != nil {
 		return fmt.Errorf("failed to construct target handler: %w", err)

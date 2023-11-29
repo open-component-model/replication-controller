@@ -15,7 +15,6 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/mitchellh/hashstructure/v2"
-	mpasproductv1 "github.com/open-component-model/mpas-product-controller/pkg/ocm"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	ocm2 "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
@@ -270,15 +269,26 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	}()
 
 	if r.MpasEnabled {
-		if err := r.reconcileMpasComponent(ctx, octx, obj, sourceComponentVersion); err != nil {
-			status.MarkNotReady(r.EventRecorder, obj, "MPASEnabledComponentReconciliationFailed", err.Error())
+		if err := r.signMpasComponent(ctx, obj, sourceComponentVersion); err != nil {
+			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.ComponentSigningFailedReason, err.Error())
 
-			return ctrl.Result{}, fmt.Errorf("failed to reconcile mpas component: %w", err)
+			return ctrl.Result{}, fmt.Errorf("failed to sign mpas component: %w", err)
 		}
+	}
+
+	if obj.Spec.Destination != nil {
+		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "transferring component to target repository: %s", obj.Spec.Destination.URL)
+
+		if err := r.OCMClient.TransferComponent(ctx, octx, obj, sourceComponentVersion); err != nil {
+			err := fmt.Errorf("failed to transfer components: %w", err)
+			status.MarkNotReady(r.EventRecorder, obj, v1alpha1.TransferFailedReason, err.Error())
+
+			return ctrl.Result{}, err
+		}
+
+		obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
 	} else {
-		if err := r.reconcileComponent(ctx, octx, obj, sourceComponentVersion); err != nil {
-			return ctrl.Result{}, fmt.Errorf("failed to reconcile component: %w", err)
-		}
+		obj.Status.ReplicatedRepositoryURL = obj.Spec.Source.URL
 	}
 
 	// Update the replicated version to the latest version
@@ -290,9 +300,8 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
 }
 
-func (r *ComponentSubscriptionReconciler) reconcileMpasComponent(
+func (r *ComponentSubscriptionReconciler) signMpasComponent(
 	ctx context.Context,
-	octx ocm2.Context,
 	obj *v1alpha1.ComponentSubscription,
 	sourceComponentVersion ocm2.ComponentVersionAccess,
 ) error {
@@ -300,22 +309,15 @@ func (r *ComponentSubscriptionReconciler) reconcileMpasComponent(
 		return fmt.Errorf("destination must be set for MPAS enabled components")
 	}
 
-	rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "transferring mpas component to target repository: %s", obj.Spec.Destination.URL)
-
 	if err := r.checkComponentIsMPASEnabled(sourceComponentVersion); err != nil {
 		return fmt.Errorf("failed to verify component validity: %w", err)
 	}
 
 	pub, err := r.OCMClient.SignDestinationComponent(ctx, sourceComponentVersion)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to sign destination component: %w", err)
 	}
 
-	if err := r.OCMClient.TransferComponent(ctx, octx, obj, sourceComponentVersion); err != nil {
-		return fmt.Errorf("failed to transfer components: %w", err)
-	}
-
-	obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
 	obj.Status.Signature = []v1alpha1.Signature{
 		{
 			Name:          v1alpha1.InternalSignatureName,
@@ -332,32 +334,9 @@ func (r *ComponentSubscriptionReconciler) reconcileMpasComponent(
 	return nil
 }
 
-func (r *ComponentSubscriptionReconciler) reconcileComponent(
-	ctx context.Context,
-	octx ocm2.Context,
-	obj *v1alpha1.ComponentSubscription,
-	cv ocm2.ComponentVersionAccess,
-) error {
-	if obj.Spec.Destination != nil {
-		rreconcile.ProgressiveStatus(false, obj, meta.ProgressingReason, "transferring component to target repository: %s", obj.Spec.Destination.URL)
-
-		if err := r.OCMClient.TransferComponent(ctx, octx, obj, cv); err != nil {
-			return fmt.Errorf("failed to transfer components: %w", err)
-		}
-
-		obj.Status.ReplicatedRepositoryURL = obj.Spec.Destination.URL
-
-		return nil
-	}
-
-	obj.Status.ReplicatedRepositoryURL = obj.Spec.Source.URL
-
-	return nil
-}
-
 func (r *ComponentSubscriptionReconciler) checkComponentIsMPASEnabled(cv ocm2.ComponentVersionAccess) error {
 	resources, err := cv.GetResourcesByResourceSelectors(compdesc.ResourceSelectorFunc(func(obj compdesc.ResourceSelectionContext) (bool, error) {
-		return obj.GetType() == mpasproductv1.ProductDescriptionType, nil
+		return obj.GetType() == v1alpha1.ProductDescriptionType, nil
 	}))
 	if err != nil {
 		return fmt.Errorf("failed to get resource by selector: %w", err)

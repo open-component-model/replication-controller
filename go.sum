@@ -1177,8 +1177,6 @@ github.com/onsi/gomega v1.22.1/go.mod h1:x6n7VNe4hw0vkyYUM4mjIXx3JbLiPaBPNgB7PRQ
 github.com/onsi/gomega v1.23.0/go.mod h1:Z/NWtiqwBrwUt4/2loMmHL63EDLnYHmVbuBpDr2vQAg=
 github.com/onsi/gomega v1.27.10 h1:naR28SdDFlqrG6kScpT8VWpu1xWY5nJRCF3XaYyBjhI=
 github.com/onsi/gomega v1.27.10/go.mod h1:RsS8tutOdbdgzbPtzzATp12yT7kM5I5aElG3evPbQ0M=
-github.com/open-component-model/mpas-product-controller v0.8.0 h1:kIHgcfnQJGbIik2aDyOx5IkncYGttQ4xtRMRgFmmGZI=
-github.com/open-component-model/mpas-product-controller v0.8.0/go.mod h1:J9gZA+Lhm/ORTBwpenKLbY3eRZrMnqpGm1rboM6zsaI=
 github.com/open-component-model/ocm v0.4.0 h1:S+rPJGoDnSvxhBn3QS2HXURxugTjCM4XWEJLZSaH6Ek=
 github.com/open-component-model/ocm v0.4.0/go.mod h1:7RAqaUMmA4BlwW5ZEUBm8amWIb1TL9FhNigNXQ6wiu0=
 github.com/open-component-model/ocm-controller v0.16.1 h1:Vr04cTivp/kBYktTwDMG4FgmpIS+DdgxX1QnBdBp/hA=

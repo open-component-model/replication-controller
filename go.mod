@@ -31,7 +31,6 @@ require (
 	github.com/fluxcd/pkg/runtime v0.42.0
 	github.com/go-logr/logr v1.3.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
-	github.com/open-component-model/mpas-product-controller v0.8.0
 	github.com/open-component-model/ocm v0.4.0
 	github.com/open-component-model/ocm-controller v0.16.1
 	github.com/stretchr/testify v1.8.4
