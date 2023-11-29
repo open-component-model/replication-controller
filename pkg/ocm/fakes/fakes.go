@@ -75,8 +75,8 @@ func (m *MockFetcher) GetComponentVersionWasNotCalled() bool {
 	return len(m.getComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
-	m.verifySourceComponentCalledWith = append(m.verifySourceComponentCalledWith, []any{obj, version})
+func (m *MockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, cv ocm.ComponentVersionAccess) (bool, error) {
+	m.verifySourceComponentCalledWith = append(m.verifySourceComponentCalledWith, []any{obj, cv})
 	return m.verifySourceComponentVerified, m.verifySourceComponentErr
 }
 
@@ -111,8 +111,8 @@ func (m *MockFetcher) GetLatestComponentVersionWasNotCalled() bool {
 	return len(m.getLatestComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
-	m.transferComponentVersionCalledWith = append(m.transferComponentVersionCalledWith, []any{obj, sourceComponentVersion, version})
+func (m *MockFetcher) TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess) error {
+	m.transferComponentVersionCalledWith = append(m.transferComponentVersionCalledWith, []any{obj, sourceComponentVersion})
 	return m.transferComponentVersionErr
 }
 

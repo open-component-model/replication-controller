@@ -37,7 +37,7 @@ const dockerConfigKey = ".dockerconfigjson"
 // Contract defines a subset of capabilities from the OCM library.
 type Contract interface {
 	CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error)
-	VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error)
+	VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, cv ocm.ComponentVersionAccess) (bool, error)
 	SignDestinationComponent(ctx context.Context, component ocm.ComponentVersionAccess) ([]byte, error)
 	GetComponentVersion(
 		ctx context.Context,
@@ -51,7 +51,6 @@ type Contract interface {
 		octx ocm.Context,
 		obj *v1alpha1.ComponentSubscription,
 		sourceComponentVersion ocm.ComponentVersionAccess,
-		version string,
 	) error
 }
 
@@ -150,24 +149,7 @@ func (c *Client) GetComponentVersion(
 	return cv, nil
 }
 
-func (c *Client) VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
-	log := log.FromContext(ctx)
-
-	repoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
-	repo, err := octx.RepositoryForSpec(repoSpec)
-	if err != nil {
-		return false, fmt.Errorf("failed to get repository for spec: %w", err)
-	}
-	defer repo.Close()
-
-	cv, err := repo.LookupComponentVersion(obj.Spec.Component, version)
-	if err != nil {
-		return false, fmt.Errorf("failed to look up component Version: %w", err)
-	}
-	defer cv.Close()
-
-	resolver := ocm.NewCompoundResolver(repo)
-
+func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, cv ocm.ComponentVersionAccess) (bool, error) {
 	for _, signature := range obj.Spec.Verify {
 		cert, err := c.getPublicKey(ctx, obj.Namespace, signature.PublicKey.SecretRef.Name, signature.Name)
 		if err != nil {
@@ -175,13 +157,13 @@ func (c *Client) VerifySourceComponent(ctx context.Context, octx ocm.Context, ob
 		}
 
 		opts := signing.NewOptions(
-			signing.Resolver(resolver),
+			signing.Resolver(cv.Repository()),
 			signing.PublicKey(signature.Name, cert),
 			signing.VerifyDigests(),
 			signing.VerifySignature(signature.Name),
 		)
 
-		if err := opts.Complete(signingattr.Get(octx)); err != nil {
+		if err := opts.Complete(signingattr.Get(cv.GetContext())); err != nil {
 			return false, fmt.Errorf("verify error: %w", err)
 		}
 
@@ -206,8 +188,6 @@ func (c *Client) VerifySourceComponent(ctx context.Context, octx ocm.Context, ob
 		if dig.Value != value {
 			return false, fmt.Errorf("%s signature did not match key value", signature.Name)
 		}
-
-		log.Info("component verified", "signature", signature.Name)
 	}
 
 	return true, nil
@@ -316,7 +296,6 @@ func (c *Client) TransferComponent(
 	octx ocm.Context,
 	obj *v1alpha1.ComponentSubscription,
 	sourceComponentVersion ocm.ComponentVersionAccess,
-	version string,
 ) error {
 	sourceRepoSpec := ocireg.NewRepositorySpec(obj.Spec.Source.URL, nil)
 	source, err := octx.RepositoryForSpec(sourceRepoSpec)
@@ -325,7 +304,7 @@ func (c *Client) TransferComponent(
 	}
 	defer source.Close()
 
-	ok, err := c.VerifySourceComponent(ctx, octx, obj, version)
+	ok, err := c.VerifyComponent(ctx, obj, sourceComponentVersion)
 	if err != nil {
 		return fmt.Errorf("failed to verify signature: %w", err)
 	}

@@ -108,6 +108,9 @@ type ComponentSubscriptionStatus struct {
 	//+optional
 	Signature []Signature `json:"signature,omitempty"`
 
+	// Digest contains the digest of the subscription's spec.
+	Digest uint64 `json:"specDigest,omitempty"`
+
 	// +optional
 	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""
 	// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].message",description=""

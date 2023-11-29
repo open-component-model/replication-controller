@@ -31,6 +31,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 		subscription func() *v1alpha1.ComponentSubscription
 		setupMock    func(*fakes.MockFetcher)
 		verifyMock   func(fetcher *fakes.MockFetcher) bool
+		mpasEnabled  bool
 		err          string
 	}{
 		{
@@ -65,19 +66,22 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			},
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				args := fetcher.TransferComponentCallingArgumentsOnCall(0)
-				obj, version := args[0], args[2]
+				obj := args[0]
 				cv := obj.(*v1alpha1.ComponentSubscription)
-				return cv.Status.LastAttemptedVersion == "v0.0.1" && version.(string) == "v0.0.1"
+				return cv.Status.LastAttemptedVersion == "v0.0.1"
 			},
 		},
 		{
-			name: "destination component is signed with internal key",
+			name: "mpas enabled component is signed and hashed",
 			subscription: func() *v1alpha1.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()
 				return cv
 			},
 			setupMock: func(fakeOcm *fakes.MockFetcher) {
 				root := &mockComponent{
+					resourceAccess: []ocm.ResourceAccess{
+						nil,
+					},
 					t: t,
 					descriptor: &ocmdesc.ComponentDescriptor{
 						ComponentSpec: ocmdesc.ComponentSpec{
@@ -105,6 +109,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				name := args[0]
 				return name == "github.com/open-component-model/component"
 			},
+			mpasEnabled: true,
 		},
 		{
 			name: "no transfer is called if destination is left empty",
@@ -184,7 +189,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				cv := DefaultComponentSubscription.DeepCopy()
 				return cv
 			},
-			err: "failed to transfer components: nope",
+			err: "failed to reconcile component: failed to transfer components: nope",
 			setupMock: func(fakeOcm *fakes.MockFetcher) {
 				root := &mockComponent{
 					t: t,
@@ -212,9 +217,9 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			},
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				args := fetcher.TransferComponentCallingArgumentsOnCall(0)
-				obj, version := args[0], args[2]
+				obj := args[0]
 				cv := obj.(*v1alpha1.ComponentSubscription)
-				return cv.Status.LastAttemptedVersion == "v0.0.1" && version.(string) == "v0.0.1"
+				return cv.Status.LastAttemptedVersion == "v0.0.1"
 			},
 		},
 	}
@@ -235,6 +240,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				Client:        client,
 				OCMClient:     fakeOcm,
 				EventRecorder: recorder,
+				MpasEnabled:   tt.mpasEnabled,
 			}
 
 			_, err := cvr.Reconcile(context.Background(), ctrl.Request{
@@ -257,6 +263,10 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				} else {
 					assert.Equal(t, cv.Spec.Source.URL, cv.Status.ReplicatedRepositoryURL)
 				}
+
+				if tt.mpasEnabled {
+					assert.Equal(t, uint64(0xcc92805632da5940), cv.Status.Digest)
+				}
 			} else {
 				assert.EqualError(t, err, tt.err)
 			}
@@ -270,7 +280,8 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 type mockComponent struct {
 	descriptor *ocmdesc.ComponentDescriptor
 	ocm.ComponentVersionAccess
-	t *testing.T
+	resourceAccess []ocm.ResourceAccess
+	t              *testing.T
 }
 
 func (m *mockComponent) GetName() string {
@@ -279,6 +290,10 @@ func (m *mockComponent) GetName() string {
 
 func (m *mockComponent) GetDescriptor() *ocmdesc.ComponentDescriptor {
 	return m.descriptor
+}
+
+func (m *mockComponent) GetResourcesByResourceSelectors(selectors ...ocmdesc.ResourceSelector) ([]ocm.ResourceAccess, error) {
+	return m.resourceAccess, nil
 }
 
 func (m *mockComponent) Close() error {

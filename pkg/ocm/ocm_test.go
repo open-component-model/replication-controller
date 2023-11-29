@@ -459,7 +459,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifySourceComponent(context.Background(), octx, cv, "v0.0.1")
+	verified, err := ocmClient.VerifyComponent(context.Background(), cv, c)
 	assert.NoError(t, err)
 	assert.True(t, verified, "verified should have been true, but it did not")
 }
@@ -521,7 +521,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 		},
 	}
 
-	verified, err := ocmClient.VerifySourceComponent(context.Background(), octx, cv, "v0.0.1")
+	verified, err := ocmClient.VerifyComponent(context.Background(), cv, c)
 	require.Error(t, err)
 	assert.False(t, verified, "verified should have been false, but it did not")
 }
