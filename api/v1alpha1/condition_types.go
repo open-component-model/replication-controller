@@ -19,4 +19,7 @@ const (
 
 	// TransferFailedReason is used when we fail to transfer a component.
 	TransferFailedReason = "TransferFailed"
+
+	// ComponentSigningFailedReason is used when we can't sign the component that will be transferred.
+	ComponentSigningFailedReason = "ComponentSigningFailed"
 )

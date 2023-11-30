@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/fluxcd/pkg/apis/meta"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -60,12 +60,17 @@ type Signature struct {
 
 	// PublicKey provides a reference to a Kubernetes Secret that contains a public key
 	// which will be used to validate the named signature.
-	PublicKey SecretRef `json:"publicKey"`
+	//+optional
+	PublicKey SecretRef `json:"publicKey,omitempty"`
+
+	// PublicKeyBlob defines an inlined public key.
+	//+optional
+	PublicKeyBlob []byte `json:"publicKeyBlob,omitempty"`
 }
 
 // SecretRef clearly denotes that the requested option is a Secret.
 type SecretRef struct {
-	SecretRef meta.LocalObjectReference `json:"secretRef"`
+	SecretRef v1.LocalObjectReference `json:"secretRef"`
 }
 
 // OCMRepository specifies access details for an OCI based OCM Repository.
@@ -76,7 +81,7 @@ type OCMRepository struct {
 
 	// SecretRef specifies the credentials used to access the OCI registry.
 	// +optional
-	SecretRef *meta.LocalObjectReference `json:"secretRef,omitempty"`
+	SecretRef *v1.LocalObjectReference `json:"secretRef,omitempty"`
 }
 
 // ComponentSubscriptionStatus defines the observed state of ComponentSubscription.
@@ -98,6 +103,13 @@ type ComponentSubscriptionStatus struct {
 	// ReplicatedRepositoryURL defines the final location of the reconciled Component.
 	//+optional
 	ReplicatedRepositoryURL string `json:"replicatedRepositoryURL,omitempty"`
+
+	// Signature defines a set of internal keys that were used to sign the Component once transferred to the Destination.
+	//+optional
+	Signature []Signature `json:"signature,omitempty"`
+
+	// Digest contains the digest of the subscription's spec.
+	Digest uint64 `json:"specDigest,omitempty"`
 
 	// +optional
 	// +kubebuilder:printcolumn:name="Ready",type="string",JSONPath=".status.conditions[?(@.type==\"Ready\")].status",description=""

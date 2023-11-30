@@ -8,6 +8,7 @@ import (
 	"context"
 
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocm2 "github.com/open-component-model/replication-controller/pkg/ocm"
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 )
@@ -28,6 +29,25 @@ type MockFetcher struct {
 	getLatestComponentVersionCalledWith [][]any
 	transferComponentVersionErr         error
 	transferComponentVersionCalledWith  [][]any
+	signDestinationComponentCalledWith  [][]any
+}
+
+var _ ocm2.Contract = &MockFetcher{}
+
+func (m *MockFetcher) SignDestinationComponent(_ context.Context, component ocm.ComponentVersionAccess) ([]byte, error) {
+	m.signDestinationComponentCalledWith = append(m.signDestinationComponentCalledWith, []any{component.GetName()})
+	return nil, nil
+}
+func (m *MockFetcher) SignDestinationComponentNotCalled() bool {
+	return len(m.signDestinationComponentCalledWith) == 0
+}
+
+func (m *MockFetcher) SignDestinationComponentCallingArgumentsOnCall(i int) []any {
+	if i > len(m.signDestinationComponentCalledWith) {
+		return nil
+	}
+
+	return m.signDestinationComponentCalledWith[i]
 }
 
 func (m *MockFetcher) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error) {
@@ -55,8 +75,8 @@ func (m *MockFetcher) GetComponentVersionWasNotCalled() bool {
 	return len(m.getComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) VerifySourceComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, version string) (bool, error) {
-	m.verifySourceComponentCalledWith = append(m.verifySourceComponentCalledWith, []any{obj, version})
+func (m *MockFetcher) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, cv ocm.ComponentVersionAccess) (bool, error) {
+	m.verifySourceComponentCalledWith = append(m.verifySourceComponentCalledWith, []any{obj, cv})
 	return m.verifySourceComponentVerified, m.verifySourceComponentErr
 }
 
@@ -91,8 +111,8 @@ func (m *MockFetcher) GetLatestComponentVersionWasNotCalled() bool {
 	return len(m.getLatestComponentVersionCalledWith) == 0
 }
 
-func (m *MockFetcher) TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess, version string) error {
-	m.transferComponentVersionCalledWith = append(m.transferComponentVersionCalledWith, []any{obj, sourceComponentVersion, version})
+func (m *MockFetcher) TransferComponent(ctx context.Context, octx ocm.Context, obj *v1alpha1.ComponentSubscription, sourceComponentVersion ocm.ComponentVersionAccess) error {
+	m.transferComponentVersionCalledWith = append(m.transferComponentVersionCalledWith, []any{obj, sourceComponentVersion})
 	return m.transferComponentVersionErr
 }
 
