@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/open-component-model/ocm-controller/api/v1alpha1"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
@@ -49,28 +50,7 @@ type ComponentSubscriptionSpec struct {
 	// Verify specifies a list signatures that must be verified before a ComponentVersion
 	// is replicated.
 	// +optional
-	Verify []Signature `json:"verify,omitempty"`
-}
-
-// Signature defines the details of a signature to use for verification.
-type Signature struct {
-	// Name specifies the name of the signature. An OCM component may have multiple
-	// signatures.
-	Name string `json:"name"`
-
-	// PublicKey provides a reference to a Kubernetes Secret that contains a public key
-	// which will be used to validate the named signature.
-	//+optional
-	PublicKey SecretRef `json:"publicKey,omitempty"`
-
-	// PublicKeyBlob defines an inlined public key.
-	//+optional
-	PublicKeyBlob []byte `json:"publicKeyBlob,omitempty"`
-}
-
-// SecretRef clearly denotes that the requested option is a Secret.
-type SecretRef struct {
-	SecretRef v1.LocalObjectReference `json:"secretRef"`
+	Verify []v1alpha1.Signature `json:"verify,omitempty"`
 }
 
 // OCMRepository specifies access details for an OCI based OCM Repository.
@@ -89,7 +69,7 @@ type ComponentSubscriptionStatus struct {
 	// LastAttemptedVersion defines the latest version encountered while checking component versions.
 	// This might be different from last applied version which should be the latest applied/replicated version.
 	// The difference might be caused because of semver constraint or failures during replication.
-	//+optional
+	// +optional
 	LastAttemptedVersion string `json:"lastAttemptedVersion,omitempty"`
 
 	// ObservedGeneration is the last reconciled generation.
@@ -97,16 +77,16 @@ type ComponentSubscriptionStatus struct {
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
 
 	// LastAppliedVersion defines the final version that has been applied to the destination component version.
-	//+optional
+	// +optional
 	LastAppliedVersion string `json:"lastAppliedVersion,omitempty"`
 
 	// ReplicatedRepositoryURL defines the final location of the reconciled Component.
-	//+optional
+	// +optional
 	ReplicatedRepositoryURL string `json:"replicatedRepositoryURL,omitempty"`
 
 	// Signature defines a set of internal keys that were used to sign the Component once transferred to the Destination.
-	//+optional
-	Signature []Signature `json:"signature,omitempty"`
+	// +optional
+	Signature []v1alpha1.Signature `json:"signature,omitempty"`
 
 	// Digest contains the digest of the subscription's spec.
 	Digest uint64 `json:"specDigest,omitempty"`
