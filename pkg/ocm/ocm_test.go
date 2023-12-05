@@ -17,6 +17,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	ocmv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	ocmcontext "github.com/open-component-model/ocm-controller/pkg/fakes"
 	"github.com/open-component-model/ocm/pkg/contexts/credentials/cpi"
 	"github.com/open-component-model/ocm/pkg/contexts/oci/identity"
@@ -446,11 +447,11 @@ func TestClient_VerifyComponent(t *testing.T) {
 			Source: v1alpha1.OCMRepository{
 				URL: "localhost",
 			},
-			Verify: []v1alpha1.Signature{
+			Verify: []ocmv1alpha1.Signature{
 				{
 					Name: Signature,
-					PublicKey: v1alpha1.Secret{
-						SecretRef: corev1.LocalObjectReference{
+					PublicKey: ocmv1alpha1.PublicKey{
+						SecretRef: &corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},
@@ -508,11 +509,11 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 			Source: v1alpha1.OCMRepository{
 				URL: "localhost",
 			},
-			Verify: []v1alpha1.Signature{
+			Verify: []ocmv1alpha1.Signature{
 				{
 					Name: Signature,
-					PublicKey: v1alpha1.Secret{
-						SecretRef: corev1.LocalObjectReference{
+					PublicKey: ocmv1alpha1.PublicKey{
+						SecretRef: &corev1.LocalObjectReference{
 							Name: secretName,
 						},
 					},

@@ -15,6 +15,7 @@ import (
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
 	"github.com/mitchellh/hashstructure/v2"
+	ocmv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	ocm2 "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
@@ -318,10 +319,12 @@ func (r *ComponentSubscriptionReconciler) signMpasComponent(
 		return fmt.Errorf("failed to sign destination component: %w", err)
 	}
 
-	obj.Status.Signature = []v1alpha1.Signature{
+	obj.Status.Signature = []ocmv1alpha1.Signature{
 		{
-			Name:          v1alpha1.InternalSignatureName,
-			PublicKeyBlob: pub,
+			Name: v1alpha1.InternalSignatureName,
+			PublicKey: ocmv1alpha1.PublicKey{
+				Value: pub,
+			},
 		},
 	}
 

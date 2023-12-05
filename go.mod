@@ -32,7 +32,7 @@ require (
 	github.com/go-logr/logr v1.3.0
 	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/open-component-model/ocm v0.4.0
-	github.com/open-component-model/ocm-controller v0.17.1-0.20231205111312-95f5313cf44b
+	github.com/open-component-model/ocm-controller v0.18.0
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.1
 	k8s.io/apimachinery v0.28.1
