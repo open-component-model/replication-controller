@@ -114,13 +114,12 @@ spec:
                       type: string
                     publicKey:
                       description: PublicKey provides a reference to a Kubernetes
-                        Secret that contains a public key which will be used to validate
-                        the named signature.
+                        Secret of contain a blob of a public key that which will be
+                        used to validate the named signature.
                       properties:
                         secretRef:
-                          description: LocalObjectReference contains enough information
-                            to let you locate the referenced object inside the same
-                            namespace.
+                          description: SecretRef is a reference to a Secret that contains
+                            a public key.
                           properties:
                             name:
                               description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -128,15 +127,15 @@ spec:
                               type: string
                           type: object
                           x-kubernetes-map-type: atomic
-                      required:
-                      - secretRef
+                        value:
+                          description: Value defines a PEM/base64 encoded public key
+                            value.
+                          format: byte
+                          type: string
                       type: object
-                    publicKeyBlob:
-                      description: PublicKeyBlob defines an inlined public key.
-                      format: byte
-                      type: string
                   required:
                   - name
+                  - publicKey
                   type: object
                 type: array
             required:
@@ -248,13 +247,12 @@ spec:
                       type: string
                     publicKey:
                       description: PublicKey provides a reference to a Kubernetes
-                        Secret that contains a public key which will be used to validate
-                        the named signature.
+                        Secret of contain a blob of a public key that which will be
+                        used to validate the named signature.
                       properties:
                         secretRef:
-                          description: LocalObjectReference contains enough information
-                            to let you locate the referenced object inside the same
-                            namespace.
+                          description: SecretRef is a reference to a Secret that contains
+                            a public key.
                           properties:
                             name:
                               description: 'Name of the referent. More info: https://kubernetes.io/docs/concepts/overview/working-with-objects/names/#names
@@ -262,15 +260,15 @@ spec:
                               type: string
                           type: object
                           x-kubernetes-map-type: atomic
-                      required:
-                      - secretRef
+                        value:
+                          description: Value defines a PEM/base64 encoded public key
+                            value.
+                          format: byte
+                          type: string
                       type: object
-                    publicKeyBlob:
-                      description: PublicKeyBlob defines an inlined public key.
-                      format: byte
-                      type: string
                   required:
                   - name
+                  - publicKey
                   type: object
                 type: array
               specDigest:
