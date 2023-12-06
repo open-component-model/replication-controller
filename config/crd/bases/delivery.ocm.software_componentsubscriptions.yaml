@@ -271,10 +271,6 @@ spec:
                   - publicKey
                   type: object
                 type: array
-              specDigest:
-                description: Digest contains the digest of the subscription's spec.
-                format: int64
-                type: integer
             type: object
         type: object
     served: true

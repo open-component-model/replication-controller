@@ -11,15 +11,14 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/open-component-model/replication-controller/pkg/ocm/fakes"
@@ -263,10 +262,6 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				} else {
 					assert.Equal(t, cv.Spec.Source.URL, cv.Status.ReplicatedRepositoryURL)
 				}
-
-				if tt.mpasEnabled {
-					assert.Equal(t, uint64(0xcc92805632da5940), cv.Status.Digest)
-				}
 			} else {
 				assert.EqualError(t, err, tt.err)
 			}
@@ -274,7 +269,6 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			assert.True(t, tt.verifyMock(fakeOcm))
 		})
 	}
-
 }
 
 type mockComponent struct {
