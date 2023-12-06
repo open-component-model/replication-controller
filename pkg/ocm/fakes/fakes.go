@@ -18,6 +18,7 @@ import (
 // resources and the mock does not compile.
 // I.e.: counterfeiter: https://github.com/maxbrunsfeld/counterfeiter/issues/174
 type MockFetcher struct {
+	signDestinationComponentPubKey      []byte
 	getComponentVersionMap              map[string]ocm.ComponentVersionAccess
 	getComponentVersionErr              error
 	getComponentVersionCalledWith       [][]any
@@ -36,7 +37,7 @@ var _ ocm2.Contract = &MockFetcher{}
 
 func (m *MockFetcher) SignDestinationComponent(_ context.Context, component ocm.ComponentVersionAccess) ([]byte, error) {
 	m.signDestinationComponentCalledWith = append(m.signDestinationComponentCalledWith, []any{component.GetName()})
-	return nil, nil
+	return m.signDestinationComponentPubKey, nil
 }
 func (m *MockFetcher) SignDestinationComponentNotCalled() bool {
 	return len(m.signDestinationComponentCalledWith) == 0
@@ -48,6 +49,10 @@ func (m *MockFetcher) SignDestinationComponentCallingArgumentsOnCall(i int) []an
 	}
 
 	return m.signDestinationComponentCalledWith[i]
+}
+
+func (m *MockFetcher) SignDestinationComponentReturns(pub []byte, t error) {
+	m.signDestinationComponentPubKey = pub
 }
 
 func (m *MockFetcher) CreateAuthenticatedOCMContext(ctx context.Context, obj *v1alpha1.ComponentSubscription) (ocm.Context, error) {

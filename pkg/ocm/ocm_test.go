@@ -5,7 +5,6 @@
 package ocm
 
 import (
-	"bytes"
 	"context"
 	"encoding/base64"
 	"os"
@@ -483,12 +482,6 @@ func TestClient_SignComponent(t *testing.T) {
 	pub, err := ocmClient.SignDestinationComponent(context.Background(), c)
 	assert.NoError(t, err)
 
-	var buff []byte
-	buffer := bytes.NewBuffer(buff)
-	encoder := base64.NewEncoder(base64.StdEncoding, buffer)
-	_, err = encoder.Write(pub)
-	require.NoError(t, err)
-	require.NoError(t, encoder.Close())
 	cv := &v1alpha1.ComponentSubscription{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      "test-name",
@@ -503,7 +496,7 @@ func TestClient_SignComponent(t *testing.T) {
 				{
 					Name: v1alpha1.InternalSignatureName,
 					PublicKey: ocmv1alpha1.PublicKey{
-						Value: buffer.Bytes(),
+						Value: base64.StdEncoding.EncodeToString(pub),
 					},
 				},
 			},

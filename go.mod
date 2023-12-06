@@ -31,7 +31,7 @@ require (
 	github.com/fluxcd/pkg/runtime v0.42.0
 	github.com/go-logr/logr v1.3.0
 	github.com/open-component-model/ocm v0.4.0
-	github.com/open-component-model/ocm-controller v0.18.0
+	github.com/open-component-model/ocm-controller v0.18.1
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.1
 	k8s.io/apimachinery v0.28.1

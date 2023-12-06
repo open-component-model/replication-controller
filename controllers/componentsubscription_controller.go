@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -322,7 +323,7 @@ func (r *ComponentSubscriptionReconciler) signMpasComponent(
 		{
 			Name: v1alpha1.InternalSignatureName,
 			PublicKey: ocmv1alpha1.PublicKey{
-				Value: pub,
+				Value: base64.StdEncoding.EncodeToString(pub),
 			},
 		},
 	}
