@@ -5,7 +5,9 @@
 package ocm
 
 import (
+	"bytes"
 	"context"
+	"encoding/base64"
 	"os"
 	"path/filepath"
 	"testing"
@@ -454,6 +456,54 @@ func TestClient_VerifyComponent(t *testing.T) {
 						SecretRef: &corev1.LocalObjectReference{
 							Name: secretName,
 						},
+					},
+				},
+			},
+		},
+	}
+
+	verified, err := ocmClient.VerifyComponent(context.Background(), cv, c)
+	assert.NoError(t, err)
+	assert.True(t, verified, "verified should have been true, but it did not")
+}
+
+func TestClient_SignComponent(t *testing.T) {
+	fakeKubeClient := env.FakeKubeClient()
+	ocmClient := NewClient(fakeKubeClient)
+	component := "github.com/skarlso/ocm-demo-index"
+
+	octx := ocmcontext.NewFakeOCMContext()
+
+	c := &ocmcontext.Component{
+		Name:    component,
+		Version: "v0.0.1",
+	}
+	require.NoError(t, octx.AddComponent(c))
+
+	pub, err := ocmClient.SignDestinationComponent(context.Background(), c)
+	assert.NoError(t, err)
+
+	var buff []byte
+	buffer := bytes.NewBuffer(buff)
+	encoder := base64.NewEncoder(base64.StdEncoding, buffer)
+	_, err = encoder.Write(pub)
+	require.NoError(t, err)
+	require.NoError(t, encoder.Close())
+	cv := &v1alpha1.ComponentSubscription{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "test-name",
+			Namespace: "default",
+		},
+		Spec: v1alpha1.ComponentSubscriptionSpec{
+			Component: component,
+			Source: v1alpha1.OCMRepository{
+				URL: "localhost",
+			},
+			Verify: []ocmv1alpha1.Signature{
+				{
+					Name: v1alpha1.InternalSignatureName,
+					PublicKey: ocmv1alpha1.PublicKey{
+						Value: buffer.Bytes(),
 					},
 				},
 			},

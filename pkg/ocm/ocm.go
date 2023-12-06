@@ -71,7 +71,7 @@ func NewClient(client client.Client) *Client {
 // SignDestinationComponent signs the component before transferring it and returns the public key for storing it on the
 // subscription.
 func (c *Client) SignDestinationComponent(_ context.Context, component ocm.ComponentVersionAccess) ([]byte, error) {
-	pub, priv, err := sign.GenerateSigningKeyPEMPair()
+	priv, pub, err := sign.GenerateSigningKeyPEMPair()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate signing key: %w", err)
 	}
@@ -151,7 +151,25 @@ func (c *Client) GetComponentVersion(
 
 func (c *Client) VerifyComponent(ctx context.Context, obj *v1alpha1.ComponentSubscription, cv ocm.ComponentVersionAccess) (bool, error) {
 	for _, signature := range obj.Spec.Verify {
-		cert, err := c.getPublicKey(ctx, obj.Namespace, signature.PublicKey.SecretRef.Name, signature.Name)
+		var (
+			cert []byte
+			err  error
+		)
+
+		if signature.PublicKey.Value != nil {
+			cert, err = signature.PublicKey.DecodePublicValue()
+		} else {
+			if signature.PublicKey.SecretRef == nil {
+				return false, fmt.Errorf("kubernetes secret reference not provided")
+			}
+
+			cert, err = c.getPublicKey(
+				ctx,
+				obj.Namespace,
+				signature.PublicKey.SecretRef.Name,
+				signature.Name,
+			)
+		}
 		if err != nil {
 			return false, fmt.Errorf("verify error: %w", err)
 		}
