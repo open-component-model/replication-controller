@@ -30,9 +30,8 @@ require (
 	github.com/fluxcd/pkg/apis/meta v1.1.2
 	github.com/fluxcd/pkg/runtime v0.42.0
 	github.com/go-logr/logr v1.3.0
-	github.com/mitchellh/hashstructure/v2 v2.0.2
 	github.com/open-component-model/ocm v0.4.0
-	github.com/open-component-model/ocm-controller v0.18.0
+	github.com/open-component-model/ocm-controller v0.18.1
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.1
 	k8s.io/apimachinery v0.28.1
@@ -199,6 +198,7 @@ require (
 	github.com/mitchellh/copystructure v1.2.0 // indirect
 	github.com/mitchellh/go-homedir v1.1.0 // indirect
 	github.com/mitchellh/hashstructure v1.1.0 // indirect
+	github.com/mitchellh/hashstructure/v2 v2.0.2 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mitchellh/reflectwalk v1.0.2 // indirect
 	github.com/moby/locker v1.0.1 // indirect

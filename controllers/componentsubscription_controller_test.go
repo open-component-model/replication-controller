@@ -11,15 +11,15 @@ import (
 
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/conditions"
+	"github.com/open-component-model/ocm/pkg/contexts/ocm"
+	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
+	"github.com/open-component-model/replication-controller/pkg/sign"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
-
-	"github.com/open-component-model/ocm/pkg/contexts/ocm"
-	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
-	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/open-component-model/replication-controller/pkg/ocm/fakes"
@@ -72,7 +72,7 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			},
 		},
 		{
-			name: "mpas enabled component is signed and hashed",
+			name: "mpas enabled component is signed",
 			subscription: func() *v1alpha1.ComponentSubscription {
 				cv := DefaultComponentSubscription.DeepCopy()
 				return cv
@@ -101,8 +101,11 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 						},
 					},
 				}
+				_, pub, err := sign.GenerateSigningKeyPEMPair()
+				require.NoError(t, err)
 				fakeOcm.GetComponentVersionReturnsForName(root.descriptor.ComponentSpec.Name, root, nil)
 				fakeOcm.GetLatestComponentVersionReturns("v0.0.1", nil)
+				fakeOcm.SignDestinationComponentReturns(pub, nil)
 			},
 			verifyMock: func(fetcher *fakes.MockFetcher) bool {
 				args := fetcher.SignDestinationComponentCallingArgumentsOnCall(0)
@@ -265,7 +268,11 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 				}
 
 				if tt.mpasEnabled {
-					assert.Equal(t, uint64(0xcc92805632da5940), cv.Status.Digest)
+					assert.NotEmpty(t, cv.Status.Signature)
+					sigName := cv.Status.Signature[0].Name
+					sigKey := cv.Status.Signature[0].PublicKey.Value
+					assert.Equal(t, v1alpha1.InternalSignatureName, sigName)
+					assert.NotEmpty(t, sigKey)
 				}
 			} else {
 				assert.EqualError(t, err, tt.err)
@@ -274,7 +281,6 @@ func TestComponentSubscriptionReconciler(t *testing.T) {
 			assert.True(t, tt.verifyMock(fakeOcm))
 		})
 	}
-
 }
 
 type mockComponent struct {

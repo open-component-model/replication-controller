@@ -6,6 +6,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/fluxcd/pkg/apis/meta"
 	"github.com/fluxcd/pkg/runtime/patch"
 	rreconcile "github.com/fluxcd/pkg/runtime/reconcile"
-	"github.com/mitchellh/hashstructure/v2"
 	ocmv1alpha1 "github.com/open-component-model/ocm-controller/api/v1alpha1"
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	ocm2 "github.com/open-component-model/ocm/pkg/contexts/ocm"
@@ -323,16 +323,10 @@ func (r *ComponentSubscriptionReconciler) signMpasComponent(
 		{
 			Name: v1alpha1.InternalSignatureName,
 			PublicKey: ocmv1alpha1.PublicKey{
-				Value: pub,
+				Value: base64.StdEncoding.EncodeToString(pub),
 			},
 		},
 	}
-
-	hash, err := hashstructure.Hash(obj.Spec, hashstructure.FormatV2, nil)
-	if err != nil {
-		return fmt.Errorf("failed to hash subscription spec: %w", err)
-	}
-	obj.Status.Digest = hash
 
 	return nil
 }
