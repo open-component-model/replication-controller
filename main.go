@@ -8,7 +8,6 @@ import (
 	"flag"
 	"os"
 
-	"github.com/open-component-model/replication-controller/pkg/ocm"
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -22,6 +21,7 @@ import (
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/open-component-model/replication-controller/controllers"
+	"github.com/open-component-model/replication-controller/pkg/ocm"
 	//+kubebuilder:scaffold:imports
 )
 

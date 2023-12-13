@@ -19,6 +19,7 @@ import (
 	"github.com/open-component-model/ocm-controller/pkg/status"
 	ocm2 "github.com/open-component-model/ocm/pkg/contexts/ocm"
 	"github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
+	"github.com/open-component-model/replication-controller/pkg/metrics"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/fields"
@@ -294,6 +295,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	// Update the replicated version to the latest version
 	obj.Status.LastAppliedVersion = latestSourceComponentVersion.Original()
+	metrics.SubscriptionsReconciledTotal.WithLabelValues("name", obj.Name, "version", obj.Status.LastAppliedVersion).Inc()
 
 	status.MarkReady(r.EventRecorder, obj, "Reconciliation success")
 

@@ -1,6 +1,6 @@
 module github.com/open-component-model/replication-controller
 
-go 1.21
+go 1.21.2
 
 // Docker dependencies. At the moment if this writing without these the build fails with:
 // cannot use remote (variable of type *"github.com/docker/docker/registry".Service) as "github.com/docker/docker/registry".Service value in argument to c.loginWithTLS
@@ -32,6 +32,7 @@ require (
 	github.com/go-logr/logr v1.3.0
 	github.com/open-component-model/ocm v0.4.0
 	github.com/open-component-model/ocm-controller v0.18.1
+	github.com/open-component-model/pkg/metrics v0.0.0-20231213134158-5a89d6089df7
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.1
 	k8s.io/apimachinery v0.28.1
@@ -222,10 +223,10 @@ require (
 	github.com/peterbourgon/diskv v2.0.1+incompatible // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
-	github.com/prometheus/client_golang v1.16.0 // indirect
-	github.com/prometheus/client_model v0.4.0 // indirect
+	github.com/prometheus/client_golang v1.17.0 // indirect
+	github.com/prometheus/client_model v0.4.1-0.20230718164431-9a2bf3000d16 // indirect
 	github.com/prometheus/common v0.44.0 // indirect
-	github.com/prometheus/procfs v0.10.1 // indirect
+	github.com/prometheus/procfs v0.11.1 // indirect
 	github.com/sassoftware/relic v7.2.1+incompatible // indirect
 	github.com/secure-systems-lab/go-securesystemslib v0.6.0 // indirect
 	github.com/segmentio/ksuid v1.0.4 // indirect
