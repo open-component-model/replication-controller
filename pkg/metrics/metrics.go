@@ -13,10 +13,17 @@ const (
 )
 
 // SubscriptionsReconciledTotal counts the number times a subscription was reconciled.
-// Labels: [call].
 var SubscriptionsReconciledTotal = mh.MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"subscription_reconciled_total",
 	"Number of times a subscription was reconciled",
+)
+
+// SubscriptionsReconcileFailed counts the number times we failed to reconcile a subscription
+var SubscriptionsReconcileFailed = mh.MustRegisterCounter(
+	"ocm_system",
+	metricsComponent,
+	"subscription_reconcile_failed",
+	"Number of times a subscription failed to reconcile",
 )

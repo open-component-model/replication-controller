@@ -1,5 +1,4 @@
 
-# Prometheus Monitor Service (Metrics)
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -16,8 +15,8 @@ metadata:
 spec:
   endpoints:
     - path: /metrics
-      port: https
-      scheme: https
+      port: metrics # this must match with the service port name
+      scheme: http
       bearerTokenFile: /var/run/secrets/kubernetes.io/serviceaccount/token
       tlsConfig:
         insecureSkipVerify: true

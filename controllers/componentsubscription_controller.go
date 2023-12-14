@@ -180,6 +180,10 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		if derr := status.UpdateStatus(ctx, patchHelper, obj, r.EventRecorder, obj.GetRequeueAfter()); derr != nil {
 			err = errors.Join(err, derr)
 		}
+
+		if err != nil {
+			metrics.SubscriptionsReconcileFailed.Inc()
+		}
 	}()
 
 	// Starts the progression by setting ReconcilingCondition.
