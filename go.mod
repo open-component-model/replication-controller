@@ -1,6 +1,6 @@
 module github.com/open-component-model/replication-controller
 
-go 1.21.2
+go 1.21
 
 // Docker dependencies. At the moment if this writing without these the build fails with:
 // cannot use remote (variable of type *"github.com/docker/docker/registry".Service) as "github.com/docker/docker/registry".Service value in argument to c.loginWithTLS

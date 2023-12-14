@@ -182,7 +182,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		}
 
 		if err != nil {
-			metrics.SubscriptionsReconcileFailed.Inc()
+			metrics.SubscriptionsReconcileFailed.WithLabelValues("name", obj.Name).Inc()
 		}
 	}()
 
@@ -210,6 +210,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	if err != nil {
 		err := fmt.Errorf("failed to authenticate OCM context: %w", err)
 		status.MarkAsStalled(r.EventRecorder, obj, v1alpha1.AuthenticationFailedReason, err.Error())
+		metrics.SubscriptionsReconcileFailed.WithLabelValues("name", obj.Name).Inc()
 
 		return ctrl.Result{}, nil
 	}
@@ -218,6 +219,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	if err != nil {
 		err := fmt.Errorf("failed to get latest component version: %w", err)
 		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.PullingLatestVersionFailedReason, err.Error())
+		metrics.SubscriptionsReconcileFailed.WithLabelValues("name", obj.Name).Inc()
 
 		// we don't want to fail but keep searching until it's there. But we do mark the subscription as failed.
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil

@@ -6,11 +6,16 @@ package metrics
 
 import (
 	mh "github.com/open-component-model/pkg/metrics"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
 const (
 	metricsComponent = "replication_controller"
 )
+
+func init() {
+	metrics.Registry.MustRegister(SubscriptionsReconciledTotal, SubscriptionsReconcileFailed)
+}
 
 // SubscriptionsReconciledTotal counts the number times a subscription was reconciled.
 var SubscriptionsReconciledTotal = mh.MustRegisterCounterVec(
@@ -20,10 +25,18 @@ var SubscriptionsReconciledTotal = mh.MustRegisterCounterVec(
 	"Number of times a subscription was reconciled",
 )
 
-// SubscriptionsReconcileFailed counts the number times we failed to reconcile a subscription
-var SubscriptionsReconcileFailed = mh.MustRegisterCounter(
+// SubscriptionsReconcileFailed counts the number times we failed to reconcile a subscription.
+var SubscriptionsReconcileFailed = mh.MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
 	"subscription_reconcile_failed",
 	"Number of times a subscription failed to reconcile",
+)
+
+// SubscriptionsTotalBytes counts the number of bytes reconciled for a specific component version.
+var SubscriptionsTotalBytes = mh.MustRegisterCounterVec(
+	"ocm_system",
+	metricsComponent,
+	"subscription_total_bytes",
+	"Number of bytes reconciled for a specific version",
 )
