@@ -182,7 +182,7 @@ func (r *ComponentSubscriptionReconciler) Reconcile(ctx context.Context, req ctr
 		}
 
 		if err != nil {
-			metrics.SubscriptionsReconcileFailed.WithLabelValues("name", obj.Name).Inc()
+			metrics.SubscriptionsReconcileFailed.WithLabelValues(obj.Name).Inc()
 		}
 	}()
 
@@ -210,7 +210,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	if err != nil {
 		err := fmt.Errorf("failed to authenticate OCM context: %w", err)
 		status.MarkAsStalled(r.EventRecorder, obj, v1alpha1.AuthenticationFailedReason, err.Error())
-		metrics.SubscriptionsReconcileFailed.WithLabelValues("name", obj.Name).Inc()
+		metrics.SubscriptionsReconcileFailed.WithLabelValues(obj.Name).Inc()
 
 		return ctrl.Result{}, nil
 	}
@@ -219,7 +219,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 	if err != nil {
 		err := fmt.Errorf("failed to get latest component version: %w", err)
 		status.MarkNotReady(r.EventRecorder, obj, v1alpha1.PullingLatestVersionFailedReason, err.Error())
-		metrics.SubscriptionsReconcileFailed.WithLabelValues("name", obj.Name).Inc()
+		metrics.SubscriptionsReconcileFailed.WithLabelValues(obj.Name).Inc()
 
 		// we don't want to fail but keep searching until it's there. But we do mark the subscription as failed.
 		return ctrl.Result{RequeueAfter: obj.GetRequeueAfter()}, nil
@@ -301,7 +301,7 @@ func (r *ComponentSubscriptionReconciler) reconcile(ctx context.Context, obj *v1
 
 	// Update the replicated version to the latest version
 	obj.Status.LastAppliedVersion = latestSourceComponentVersion.Original()
-	metrics.SubscriptionsReconciledTotal.WithLabelValues("name", obj.Name, "version", obj.Status.LastAppliedVersion).Inc()
+	metrics.SubscriptionsReconciledTotal.WithLabelValues(obj.Name, obj.Status.LastAppliedVersion).Inc()
 
 	status.MarkReady(r.EventRecorder, obj, "Reconciliation success")
 

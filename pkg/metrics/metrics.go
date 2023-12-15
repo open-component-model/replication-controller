@@ -23,6 +23,7 @@ var SubscriptionsReconciledTotal = mh.MustRegisterCounterVec(
 	metricsComponent,
 	"subscription_reconciled_total",
 	"Number of times a subscription was reconciled",
+	"component", "version",
 )
 
 // SubscriptionsReconcileFailed counts the number times we failed to reconcile a subscription.
@@ -31,6 +32,7 @@ var SubscriptionsReconcileFailed = mh.MustRegisterCounterVec(
 	metricsComponent,
 	"subscription_reconcile_failed",
 	"Number of times a subscription failed to reconcile",
+	"component",
 )
 
 // SubscriptionsTotalBytes counts the number of bytes reconciled for a specific component version.

@@ -1,6 +1,6 @@
 module github.com/open-component-model/replication-controller
 
-go 1.21.2
+go 1.21
 
 // Docker dependencies. At the moment if this writing without these the build fails with:
 // cannot use remote (variable of type *"github.com/docker/docker/registry".Service) as "github.com/docker/docker/registry".Service value in argument to c.loginWithTLS
@@ -32,7 +32,7 @@ require (
 	github.com/go-logr/logr v1.3.0
 	github.com/open-component-model/ocm v0.4.0
 	github.com/open-component-model/ocm-controller v0.18.1
-	github.com/open-component-model/pkg/metrics v0.0.0-20231213134158-5a89d6089df7
+	github.com/open-component-model/pkg/metrics v0.0.0-20231215104910-c22c85050bda
 	github.com/stretchr/testify v1.8.4
 	k8s.io/api v0.28.1
 	k8s.io/apimachinery v0.28.1

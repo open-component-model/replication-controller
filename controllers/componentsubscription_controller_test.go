@@ -14,7 +14,6 @@ import (
 	"github.com/open-component-model/ocm/pkg/contexts/ocm"
 	ocmdesc "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc"
 	v1 "github.com/open-component-model/ocm/pkg/contexts/ocm/compdesc/meta/v1"
-	"github.com/open-component-model/replication-controller/pkg/sign"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/types"
@@ -23,6 +22,7 @@ import (
 
 	"github.com/open-component-model/replication-controller/api/v1alpha1"
 	"github.com/open-component-model/replication-controller/pkg/ocm/fakes"
+	"github.com/open-component-model/replication-controller/pkg/sign"
 )
 
 func TestComponentSubscriptionReconciler(t *testing.T) {

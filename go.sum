@@ -1182,8 +1182,8 @@ github.com/open-component-model/ocm v0.4.0 h1:S+rPJGoDnSvxhBn3QS2HXURxugTjCM4XWE
 github.com/open-component-model/ocm v0.4.0/go.mod h1:7RAqaUMmA4BlwW5ZEUBm8amWIb1TL9FhNigNXQ6wiu0=
 github.com/open-component-model/ocm-controller v0.18.1 h1:bicmTJbBngt5KB0SszgDDQtS2GVyZX6XynBfAzdrv7c=
 github.com/open-component-model/ocm-controller v0.18.1/go.mod h1:VRwUK7eo+PJYx/XXFo7NvdjW3TsLLdtA1JXdhZzNMCo=
-github.com/open-component-model/pkg/metrics v0.0.0-20231213134158-5a89d6089df7 h1:K+XawRVpRKkSzwxJo6wnjMru/BzA1mtoKwuig9ZD+f0=
-github.com/open-component-model/pkg/metrics v0.0.0-20231213134158-5a89d6089df7/go.mod h1:9pyV4QKI7l1lQSoZDg7mRgfSXKQFKLP2KMi6fjiJQW8=
+github.com/open-component-model/pkg/metrics v0.0.0-20231215104910-c22c85050bda h1:Hx4tjUymPAKskgob2DJ3C2rB5rBwMh1DnFKcfXHx3Eo=
+github.com/open-component-model/pkg/metrics v0.0.0-20231215104910-c22c85050bda/go.mod h1:80SzqzaWEpRC0NE8wks/QAV+QxUrpKIhpk6r0s8qBTQ=
 github.com/opencontainers/go-digest v0.0.0-20170106003457-a6d0ee40d420/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v0.0.0-20180430190053-c9281466c8b2/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
 github.com/opencontainers/go-digest v1.0.0-rc1/go.mod h1:cMLVZDEM3+U2I4VmLI6N8jQYUd2OVphdqWwCJHrFt2s=
