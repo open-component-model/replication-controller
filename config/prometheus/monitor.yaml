@@ -1,4 +1,3 @@
-
 apiVersion: monitoring.coreos.com/v1
 kind: ServiceMonitor
 metadata:
@@ -11,7 +10,6 @@ metadata:
     app.kubernetes.io/part-of: replication-controller
     app.kubernetes.io/managed-by: kustomize
   name: replication-controller-metrics-monitor
-  namespace: ocm-system
 spec:
   endpoints:
     - path: /metrics

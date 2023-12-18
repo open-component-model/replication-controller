@@ -39,6 +39,6 @@ var SubscriptionsReconcileFailed = mh.MustRegisterCounterVec(
 var SubscriptionsTotalBytes = mh.MustRegisterCounterVec(
 	"ocm_system",
 	metricsComponent,
-	"subscription_total_bytes",
+	"subscription_total_bytes_transferred",
 	"Number of bytes reconciled for a specific version",
 )
