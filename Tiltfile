@@ -54,7 +54,7 @@ install = kustomize('config/default')
 objects = decode_yaml_stream(install)
 for o in objects:
     if o.get('kind') == 'Deployment' and o.get('metadata').get('name') == 'replication-controller':
-        o['spec']['template']['spec']['securityContext']['runAsNonRoot'] = False
+        o['spec']['template']['spec']['containers'][0]['securityContext']['runAsNonRoot'] = False
         break
 
 updated_install = encode_yaml_stream(objects)
