@@ -20,8 +20,8 @@ require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.2.1
 	github.com/distribution/distribution/v3 v3.0.0-20230327091844-0c958010ace2
-	github.com/fluxcd/pkg/apis/meta v1.1.2
-	github.com/fluxcd/pkg/runtime v0.42.0
+	github.com/fluxcd/pkg/apis/meta v1.3.0
+	github.com/fluxcd/pkg/runtime v0.44.1
 	github.com/go-logr/logr v1.4.1
 	github.com/open-component-model/ocm v0.8.0
 	github.com/open-component-model/ocm-controller v0.19.0
@@ -126,7 +126,7 @@ require (
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fluxcd/helm-controller/api v0.36.0 // indirect
 	github.com/fluxcd/kustomize-controller/api v1.0.0-rc.3 // indirect
-	github.com/fluxcd/pkg/apis/event v0.5.2 // indirect
+	github.com/fluxcd/pkg/apis/event v0.7.0 // indirect
 	github.com/fluxcd/pkg/apis/kustomize v1.1.1 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/fvbommel/sortorder v1.1.0 // indirect
@@ -135,7 +135,7 @@ require (
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/go-jose/go-jose/v3 v3.0.3 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
-	github.com/go-logr/zapr v1.2.4 // indirect
+	github.com/go-logr/zapr v1.3.0 // indirect
 	github.com/go-openapi/analysis v0.22.0 // indirect
 	github.com/go-openapi/errors v0.21.0 // indirect
 	github.com/go-openapi/jsonpointer v0.20.2 // indirect
