@@ -19,7 +19,7 @@ replace (
 require (
 	github.com/Masterminds/semver v1.5.0
 	github.com/Masterminds/semver/v3 v3.2.1
-	github.com/distribution/distribution/v3 v3.0.0-20230327091844-0c958010ace2
+	github.com/distribution/distribution/v3 v3.0.0-alpha.1
 	github.com/fluxcd/pkg/apis/meta v1.1.2
 	github.com/fluxcd/pkg/runtime v0.42.0
 	github.com/go-logr/logr v1.4.1
