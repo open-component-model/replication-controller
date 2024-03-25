@@ -29,7 +29,7 @@ spec:
   component: github.com/weaveworks/podify
   semver: "=>v1.0.0"
   source:
-    url: ghcr.io/phoban01
+    url: ghcr.io/open-component-model
     secretRef:
       name: creds
   destination:
