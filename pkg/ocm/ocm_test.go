@@ -116,6 +116,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 						Name:      "test-name-secret",
 						Namespace: "default",
 					},
+					// b3Blbi1jb21wb25lbnQtbW9kZWw6cGFzc3dvcmQ= -> open-component-model:password
 					Data: map[string][]byte{
 						".dockerconfigjson": []byte(`{
   "auths": {
@@ -193,6 +194,7 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 			Name:      "test-name-secret",
 			Namespace: "default",
 		},
+		// b3Blbi1jb21wb25lbnQtbW9kZWw6cGFzc3dvcmQ= -> open-component-model:password
 		Data: map[string][]byte{
 			".dockerconfigjson": []byte(`{
   "auths": {
