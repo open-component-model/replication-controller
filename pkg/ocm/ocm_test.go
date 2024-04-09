@@ -116,13 +116,14 @@ func TestClient_GetComponentVersion(t *testing.T) {
 						Name:      "test-name-secret",
 						Namespace: "default",
 					},
+					// b3Blbi1jb21wb25lbnQtbW9kZWw6cGFzc3dvcmQ= -> open-component-model:password
 					Data: map[string][]byte{
 						".dockerconfigjson": []byte(`{
   "auths": {
     "ghcr.io": {
-      "username": "skarlso",
+      "username": "open-component-model",
       "password": "password",
-      "auth": "c2thcmxzbzpwYXNzd29yZAo="
+      "auth": "b3Blbi1jb21wb25lbnQtbW9kZWw6cGFzc3dvcmQ="
     }
   }
 }`),
@@ -142,7 +143,7 @@ func TestClient_GetComponentVersion(t *testing.T) {
 			t.Helper()
 
 			objs := make([]client.Object, 0)
-			component := "github.com/skarlso/ocm-demo-index"
+			component := "github.com/open-component-model/ocm-demo-index"
 			cs := tt.subscription(component, &objs)
 			fakeKubeClient := env.FakeKubeClient(WithObjects(objs...))
 
@@ -169,7 +170,7 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 			Namespace: "default",
 		},
 		Spec: v1alpha1.ComponentSubscriptionSpec{
-			Component: "github.com/skarlso/ocm-demo-index",
+			Component: "github.com/open-component-model/ocm-demo-index",
 			Semver:    ">v0.0.1",
 			Source: v1alpha1.OCMRepository{
 				URL: "localhost",
@@ -193,13 +194,14 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 			Name:      "test-name-secret",
 			Namespace: "default",
 		},
+		// b3Blbi1jb21wb25lbnQtbW9kZWw6cGFzc3dvcmQ= -> open-component-model:password
 		Data: map[string][]byte{
 			".dockerconfigjson": []byte(`{
   "auths": {
     "ghcr.io": {
-      "username": "skarlso",
+      "username": "open-component-model",
       "password": "password",
-      "auth": "c2thcmxzbzpwYXNzd29yZAo="
+      "auth": "b3Blbi1jb21wb25lbnQtbW9kZWw6cGFzc3dvcmQ="
     }
   }
 }`),
@@ -216,7 +218,7 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 	id := cpi.ConsumerIdentity{
 		cpi.ID_TYPE:            identity.CONSUMER_TYPE,
 		identity.ID_HOSTNAME:   "ghcr.io",
-		identity.ID_PATHPREFIX: "skarlso",
+		identity.ID_PATHPREFIX: "open-component-model",
 	}
 	creds, err := octx.CredentialsContext().GetCredentialsForConsumer(id)
 	require.NoError(t, err)
@@ -224,7 +226,7 @@ func TestClient_CreateAuthenticatedOCMContext(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, "password", consumer.Properties()["password"])
-	assert.Equal(t, "skarlso", consumer.Properties()["username"])
+	assert.Equal(t, "open-component-model", consumer.Properties()["username"])
 	assert.Equal(t, "ghcr.io", consumer.Properties()["serverAddress"])
 }
 
@@ -390,7 +392,7 @@ func TestClient_GetLatestValidComponentVersion(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			fakeKubeClient := env.FakeKubeClient()
 			ocmClient := NewClient(fakeKubeClient)
-			component := "github.com/skarlso/ocm-demo-index"
+			component := "github.com/open-component-model/ocm-demo-index"
 
 			octx := ocmcontext.NewFakeOCMContext()
 			err := tt.setupComponents(component, octx)
@@ -422,7 +424,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 	}
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	ocmClient := NewClient(fakeKubeClient)
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 
 	octx := ocmcontext.NewFakeOCMContext()
 
@@ -469,7 +471,7 @@ func TestClient_VerifyComponent(t *testing.T) {
 func TestClient_SignComponent(t *testing.T) {
 	fakeKubeClient := env.FakeKubeClient()
 	ocmClient := NewClient(fakeKubeClient)
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 
 	octx := ocmcontext.NewFakeOCMContext()
 
@@ -526,7 +528,7 @@ func TestClient_VerifyComponentDifferentPublicKey(t *testing.T) {
 	}
 	fakeKubeClient := env.FakeKubeClient(WithObjects(secret))
 	ocmClient := NewClient(fakeKubeClient)
-	component := "github.com/skarlso/ocm-demo-index"
+	component := "github.com/open-component-model/ocm-demo-index"
 
 	octx := ocmcontext.NewFakeOCMContext()
 
