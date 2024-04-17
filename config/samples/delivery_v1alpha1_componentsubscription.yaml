@@ -8,14 +8,14 @@ spec:
   source:
     secretRef:
       name: creds
-    url: ghcr.io/phoban01/ocm-podify
+    url: ghcr.io/open-component-model/ocm-podify
   destination:
-    url: ghcr.io/skarlso/hidden/ocm-podify
+    url: ghcr.io/open-component-model/hidden/ocm-podify
   component: "github.com/weaveworks/podify"
   interval: 10s
   semver: "=>v1-0"
   verify:
-    - name: phoban01
+    - name: signing-key
       publicKey:
         secretRef:
-          name: phoban01-publickey
+          name: publickey
