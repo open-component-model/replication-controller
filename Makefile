@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Gardener contributors.
-#
-# SPDX-License-Identifier: Apache-2.0
-
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
