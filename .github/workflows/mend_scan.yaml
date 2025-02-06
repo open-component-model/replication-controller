@@ -41,7 +41,7 @@ jobs:
         go-version-file: '${{ github.workspace }}/go.mod'
 
     - name: 'Setup jq'
-      uses: dcarbone/install-jq-action@v2.1.0
+      uses: dcarbone/install-jq-action@e397bd87438d72198f81efd21f876461183d383a
       with:
         version: '1.7'
 
@@ -171,7 +171,7 @@ jobs:
         fi
         
     - name: Check if PR exists
-      uses: 8BitJonny/gh-get-current-pr@2.2.0
+      uses: 8BitJonny/gh-get-current-pr@08e737c57a3a4eb24cec6487664b243b77eb5e36
       id: pr_exists
       with:
         filterOutClosed: true
@@ -179,7 +179,7 @@ jobs:
         
     - name: Comment Mend Status on PR
       if: ${{ github.event_name != 'schedule' && steps.pr_exists.outputs.pr_found == 'true' }}
-      uses: thollander/actions-comment-pull-request@v2.4.3
+      uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b
       with:
         message: |
           ## Mend Scan Summary: :${{ steps.report.outputs.status }}:
