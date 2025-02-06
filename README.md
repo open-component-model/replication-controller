@@ -1,12 +1,12 @@
-[![REUSE status](https://api.reuse.software/badge/github.com/open-component-model/replication-controller)](https://api.reuse.software/info/github.com/open-component-model/replication-controller)
-
 # replication-controller
+
+[![REUSE status](https://api.reuse.software/badge/github.com/open-component-model/replication-controller)](https://api.reuse.software/info/github.com/open-component-model/replication-controller)
 
 The `replication-controller` is part of the Open Component Model Kubernetes controller set that enables transferring components from one OCM repository to another.
 
 The behaviour of the `replication-controller` is similar to that of the `ocm transfer` command with the addition of a reconciliation loop. It can therefore be used to "subscribe" to components and ensure that any component versions matching a semantic version constraint will be replicated from the source OCM repository to the destination.
 
-### Installation
+## Installation
 
 Install the latest version of the controller using the following command:
 
@@ -16,7 +16,7 @@ VERSION=$(curl -sL https://api.github.com/repos/open-component-model/replication
 kubectl apply -f https://github.com/open-component-model/replication-controller/releases/download/$VERSION/install.yaml
 ```
 
-### Usage
+## Usage
 
 ```yaml
 apiVersion: delivery.ocm.software/v1alpha1
@@ -52,6 +52,6 @@ OCM follows the [CNCF Code of Conduct](https://github.com/cncf/foundation/blob/m
 
 ## Licensing
 
-Copyright 2022-2023 SAP SE or an SAP affiliate company and Open Component Model contributors.
+Copyright 2025 SAP SE or an SAP affiliate company and Open Component Model contributors.
 Please see our [LICENSE](LICENSE) for copyright and license information.
 Detailed information including third-party components and their licensing/copyright information is available [via the REUSE tool](https://api.reuse.software/info/github.com/open-component-model/replication-controller).
