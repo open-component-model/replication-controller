@@ -179,7 +179,7 @@ jobs:
         
     - name: Comment Mend Status on PR
       if: ${{ github.event_name != 'schedule' && steps.pr_exists.outputs.pr_found == 'true' }}
-      uses: thollander/actions-comment-pull-request@v3.0.1
+      uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b
       with:
         message: |
           ## Mend Scan Summary: :${{ steps.report.outputs.status }}:
