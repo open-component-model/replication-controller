@@ -1,7 +1,6 @@
 module github.com/open-component-model/replication-controller
 
-go 1.21
-toolchain go1.23.5
+go 1.23.5
 
 // Flux dependent re-writes. These are needed to be compatible with the flux version at all times.
 replace (
