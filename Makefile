@@ -1,7 +1,3 @@
-# SPDX-FileCopyrightText: 2022 SAP SE or an SAP affiliate company and Gardener contributors.
-#
-# SPDX-License-Identifier: Apache-2.0
-
 # Image URL to use all building/pushing image targets
 IMG ?= controller:latest
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
@@ -46,8 +42,8 @@ manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and Cust
 	$(CONTROLLER_GEN) rbac:roleName=replication-manager-role crd webhook paths="./..." output:crd:artifacts:config=config/crd/bases
 
 .PHONY: generate
-generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
-	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
+generate: controller-gen manifests ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
+	$(CONTROLLER_GEN) object paths="./..."
 
 .PHONY: fmt
 fmt: ## Run go fmt against code.
@@ -147,7 +143,7 @@ GOLANGCI_LINT ?= $(LOCALBIN)/golangci-lint
 
 ## Tool Versions
 KUSTOMIZE_VERSION ?= v3.8.7
-CONTROLLER_TOOLS_VERSION ?= v0.9.2
+CONTROLLER_TOOLS_VERSION ?= v0.17.1
 GEN_API_REF_DOCS_VERSION ?= e327d0730470cbd61b06300f81c5fcf91c23c113
 GOLANGCI_LINT_VERSION ?= v1.55.2
 
@@ -172,16 +168,6 @@ $(GEN_CRD_API_REFERENCE_DOCS): $(LOCALBIN)
 envtest: $(ENVTEST) ## Download envtest-setup locally if necessary.
 $(ENVTEST): $(LOCALBIN)
 	test -s $(LOCALBIN)/setup-envtest || GOBIN=$(LOCALBIN) go install sigs.k8s.io/controller-runtime/tools/setup-envtest@latest
-
-.PHONY: generate-license
-generate-license:
-	for f in $(shell find . -name "*.go" -o -name "*.sh"); do \
-		reuse addheader -r \
-			--copyright="SAP SE or an SAP affiliate company and Open Component Model contributors." \
-			--license="Apache-2.0" \
-			$$f \
-			--skip-unrecognised; \
-	done
 
 .PHONY: golangci-lint
 golangci-lint: $(GOLANGCI_LINT)
