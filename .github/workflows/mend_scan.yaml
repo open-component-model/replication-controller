@@ -171,7 +171,7 @@ jobs:
         fi
         
     - name: Check if PR exists
-      uses: 8BitJonny/gh-get-current-pr@3.0.0
+      uses: 8BitJonny/gh-get-current-pr@08e737c57a3a4eb24cec6487664b243b77eb5e36
       id: pr_exists
       with:
         filterOutClosed: true
