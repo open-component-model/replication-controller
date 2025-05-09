@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Blackduck Full Scan
-        uses: blackduck-inc/black-duck-security-scan@805cbd09e806b01907bbea0f990723c2bb85abe9
+        uses: blackduck-inc/black-duck-security-scan@6ee400ee2502a366bdff13cddae76bbde804fd20
         env:
           DETECT_PROJECT_USER_GROUPS: opencomponentmodel
           DETECT_PROJECT_VERSION_DISTRIBUTION: SAAS
